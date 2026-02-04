@@ -3,9 +3,80 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Sotomayor - Delegad@s</title>
+  <title>Sotomayor · Delegad@s</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <p>✅ Pages funcionando. En el Paso 2 movemos la app completa a raíz o configuramos otra ruta.</p>
-</body>
-</html>
+  <div class="container">
+    <header class="top">
+      <h1>Sotomayor · Delegad@s</h1>
+      <div class="right">
+        <span id="meLabel" class="muted"></span>
+        <button id="btnLogout" class="btn outline hidden">Salir</button>
+      </div>
+    </header>
+
+    <!-- LOGIN -->
+    <section id="viewLogin" class="card">
+      <h2>Iniciar sesión</h2>
+
+      <div class="grid2">
+        <label>
+          Usuario
+          <input id="loginUser" placeholder="claudia / angela / ana / gloria / jose / yonny" />
+        </label>
+        <label>
+          Contraseña
+          <input id="loginPass" type="password" placeholder="••••••••" />
+        </label>
+      </div>
+
+      <button id="btnLogin" class="btn">Entrar</button>
+      <p id="loginError" class="error"></p>
+
+      <p class="muted small">
+        * Por ahora es login “mock” (LocalStorage). Luego lo pasamos a Render con BD y JWT.
+      </p>
+
+      <details class="muted small">
+        <summary>Usuarios permitidos (mock)</summary>
+        Delegad@s: claudia, angela, ana, gloria, jose<br/>
+        Admin: yonny
+      </details>
+    </section>
+
+    <!-- DELEGATE -->
+    <section id="viewDelegate" class="hidden">
+      <div class="card">
+        <h2>Captura (Delegad@)</h2>
+
+        <div class="grid2">
+          <label>
+            Fecha
+            <input id="fFecha" type="date" />
+          </label>
+          <label>
+            Lugar
+            <input id="fLugar" placeholder="Vereda / Barrio / Sector" />
+          </label>
+          <label>
+            Contacto
+            <input id="fContacto" placeholder="Nombre contacto (opcional)" />
+          </label>
+          <label>
+            Teléfono
+            <input id="fTelefono" placeholder="Opcional" />
+          </label>
+        </div>
+
+        <label>
+          Título
+          <input id="fTitulo" placeholder="Ej: Solicitud / Reunión / Visita" />
+        </label>
+
+        <label>
+          Descripción
+          <textarea id="fDescripcion" rows="4" placeholder="Detalle del registro..."></textarea>
+        </label>
+
+        <button id="btnGuardar"
