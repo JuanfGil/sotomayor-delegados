@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sotomayor · Delegad@s</title>
@@ -13,71 +12,40 @@
       <h1>Sotomayor · Delegad@s</h1>
       <div class="right">
         <span id="meLabel" class="muted"></span>
-        <button id="btnLogout" class="btn outline hidden">Salir</button>
+        <button id="btnLogout" class="btn outline hidden" type="button">Salir</button>
       </div>
     </header>
 
-    <!-- LOGIN -->
     <section id="viewLogin" class="card">
       <h2>Iniciar sesión</h2>
-
       <div class="grid2">
-        <label>
-          Usuario
+        <label>Usuario
           <input id="loginUser" placeholder="claudia / angela / ana / gloria / jose / yonny" />
         </label>
-        <label>
-          Contraseña
-          <input id="loginPass" type="password" placeholder="••••••••" />
+        <label>Contraseña
+          <input id="loginPass" type="password" placeholder="1234" />
         </label>
       </div>
-
-      <button id="btnLogin" class="btn">Entrar</button>
+      <button id="btnLogin" class="btn" type="button">Entrar</button>
       <p id="loginError" class="error"></p>
-
-      <p class="muted small">
-        * Por ahora es login “mock” (LocalStorage). Luego lo pasamos a Render con BD y JWT.
-      </p>
-
-      <details class="muted small">
-        <summary>Usuarios permitidos (mock)</summary>
-        Delegad@s: claudia, angela, ana, gloria, jose<br/>
-        Admin: yonny
-      </details>
+      <p class="muted small">* Login mock solo para probar (luego Render + BD).</p>
     </section>
 
-    <!-- DELEGATE -->
     <section id="viewDelegate" class="hidden">
       <div class="card">
-        <h2>Captura (Delegad@)</h2>
+        <h2>Delegad@</h2>
+        <p class="muted">✅ Entraste como delegad@. (En el siguiente paso activamos captura y tabla).</p>
+      </div>
+    </section>
 
-        <div class="grid2">
-          <label>
-            Fecha
-            <input id="fFecha" type="date" />
-          </label>
-          <label>
-            Lugar
-            <input id="fLugar" placeholder="Vereda / Barrio / Sector" />
-          </label>
-          <label>
-            Contacto
-            <input id="fContacto" placeholder="Nombre contacto (opcional)" />
-          </label>
-          <label>
-            Teléfono
-            <input id="fTelefono" placeholder="Opcional" />
-          </label>
-        </div>
+    <section id="viewAdmin" class="hidden">
+      <div class="card">
+        <h2>Admin</h2>
+        <p class="muted">✅ Entraste como admin. (En el siguiente paso activamos vista de todos y reportes).</p>
+      </div>
+    </section>
+  </div>
 
-        <label>
-          Título
-          <input id="fTitulo" placeholder="Ej: Solicitud / Reunión / Visita" />
-        </label>
-
-        <label>
-          Descripción
-          <textarea id="fDescripcion" rows="4" placeholder="Detalle del registro..."></textarea>
-        </label>
-
-        <button id="btnGuardar"
+  <script src="app.js"></script>
+</body>
+</html>
