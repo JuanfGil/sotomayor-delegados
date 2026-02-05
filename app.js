@@ -7,8 +7,8 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v8";
-const LS_DATA = "soto_data_v8";
+const LS_SESSION = "soto_session_v9";
+const LS_DATA = "soto_data_v9";
 
 const $ = (id) => document.getElementById(id);
 
@@ -66,54 +66,95 @@ function setView(v){
   $("viewLogin")?.classList.add("hidden");
   $("viewDelegate")?.classList.add("hidden");
   $("viewAdmin")?.classList.add("hidden");
+
   $("btnLogout")?.classList.toggle("hidden", v==="login");
-  $("appMenu")?.classList.toggle("hidden", v==="login");
+  $("btnMenu")?.classList.toggle("hidden", v==="login");
 
   if(v==="login") $("viewLogin")?.classList.remove("hidden");
   if(v==="delegate") $("viewDelegate")?.classList.remove("hidden");
   if(v==="admin") $("viewAdmin")?.classList.remove("hidden");
 }
 
-// ===== Menu helpers =====
-function setActiveTab(btnId){
-  ["mCaptura","mReporte","mReporteGeneral"].forEach(id=>{
-    const b = $(id);
+// ===== Drawer menu =====
+function openMenu(){
+  $("menuDrawer")?.classList.remove("hidden");
+  $("menuBackdrop")?.classList.remove("hidden");
+}
+function closeMenu(){
+  $("menuDrawer")?.classList.add("hidden");
+  $("menuBackdrop")?.classList.add("hidden");
+}
+$("btnMenu")?.addEventListener("click", openMenu);
+$("btnCloseMenu")?.addEventListener("click", closeMenu);
+$("menuBackdrop")?.addEventListener("click", closeMenu);
+
+function setActiveNav(id){
+  ["navCaptura","navReportes","navReporteGeneral"].forEach(x=>{
+    const b = $(x);
     if(!b) return;
-    b.classList.toggle("active", id === btnId);
+    b.classList.toggle("active", x===id);
   });
 }
 
-function showDelegatePage(page){
-  $("pageCapturaDelegate")?.classList.add("hidden");
-  $("pageReporteDelegate")?.classList.add("hidden");
-  if(page === "captura") $("pageCapturaDelegate")?.classList.remove("hidden");
-  if(page === "reporte") $("pageReporteDelegate")?.classList.remove("hidden");
+// ===== Screens =====
+function showDelegateScreen(screen){
+  $("screenDelegateCaptura")?.classList.add("hidden");
+  $("screenDelegateReportes")?.classList.add("hidden");
+  if(screen === "captura") $("screenDelegateCaptura")?.classList.remove("hidden");
+  if(screen === "reportes") $("screenDelegateReportes")?.classList.remove("hidden");
 }
 
-function showAdminPage(page){
-  $("pageCapturaAdmin")?.classList.add("hidden");
-  $("pageReporteGeneralAdmin")?.classList.add("hidden");
-  if(page === "captura") $("pageCapturaAdmin")?.classList.remove("hidden");
-  if(page === "reporteGeneral") $("pageReporteGeneralAdmin")?.classList.remove("hidden");
+function showAdminScreen(screen){
+  $("screenAdminCaptura")?.classList.add("hidden");
+  $("screenAdminReporteGeneral")?.classList.add("hidden");
+  if(screen === "captura") $("screenAdminCaptura")?.classList.remove("hidden");
+  if(screen === "reporteGeneral") $("screenAdminReporteGeneral")?.classList.remove("hidden");
 }
 
-function configureMenuForRole(role){
-  // Siempre existe Captura
-  $("mCaptura")?.classList.remove("hidden");
+function configureNavForRole(role){
+  // Captura siempre
+  $("navCaptura")?.classList.remove("hidden");
+  // Delegado: Reportes (propio)
+  $("navReportes")?.classList.toggle("hidden", role !== "delegate");
+  // Admin: Reporte general
+  $("navReporteGeneral")?.classList.toggle("hidden", role !== "admin");
 
-  if(role === "delegate"){
-    $("mReporte")?.classList.remove("hidden");
-    $("mReporteGeneral")?.classList.add("hidden");
-    setActiveTab("mCaptura");
-    showDelegatePage("captura");
+  // Default screen
+  setActiveNav("navCaptura");
+  if(role === "admin") showAdminScreen("captura");
+  else showDelegateScreen("captura");
+}
+
+// Clicks nav
+$("navCaptura")?.addEventListener("click", () => {
+  closeMenu();
+  setActiveNav("navCaptura");
+  if(SESSION?.role === "admin"){
+    showAdminScreen("captura");
+    renderAdminTables(null);
   }else{
-    // admin
-    $("mReporte")?.classList.add("hidden");
-    $("mReporteGeneral")?.classList.remove("hidden");
-    setActiveTab("mCaptura");
-    showAdminPage("captura");
+    showDelegateScreen("captura");
+    refreshLeaderSelect();
+    renderLideresDelegate();
+    renderPersonasDelegate();
   }
-}
+});
+
+$("navReportes")?.addEventListener("click", () => {
+  if(SESSION?.role !== "delegate") return;
+  closeMenu();
+  setActiveNav("navReportes");
+  showDelegateScreen("reportes");
+  renderDelegateReport();
+});
+
+$("navReporteGeneral")?.addEventListener("click", () => {
+  if(SESSION?.role !== "admin") return;
+  closeMenu();
+  setActiveNav("navReporteGeneral");
+  showAdminScreen("reporteGeneral");
+  renderAdminReportGeneral();
+});
 
 // ===== Data helpers =====
 function delegateData(username){
@@ -215,7 +256,6 @@ function buildReportForDelegate(username){
 function buildReportGeneral(){
   const delegates = allDelegatesUsernames();
   const totals = { leadersTotal:0, peopleTotal:0, tipoA:0, tipoB:0, tipoC:0, compOK:0, compNU:0, compNA:0, conoce:0, compromete:0 };
-
   for(const d of delegates){
     const r = buildReportForDelegate(d);
     Object.keys(totals).forEach(k => totals[k] += (r[k] || 0));
@@ -274,7 +314,6 @@ function renderAdminReportDelegate(username){
   const host = $("adminReportCards");
   if(!host) return;
   host.innerHTML = "";
-
   const u = getUser(username);
   const name = u?.full_name || username;
   const r = buildReportForDelegate(username);
@@ -383,17 +422,15 @@ $("btnLogin").addEventListener("click", () => {
   saveSession(SESSION);
 
   $("meLabel").textContent = `${u.full_name} · ${u.role}`;
+  setView(u.role === "admin" ? "admin" : "delegate");
+  configureNavForRole(u.role);
 
   if(u.role === "admin"){
-    setView("admin");
-    configureMenuForRole("admin");
     loadAdminDelegatesSelect();
     renderAdminTables(null);
     renderAdminReportGeneral();
   }else{
     ensureDelegateStore(u.username);
-    setView("delegate");
-    configureMenuForRole("delegate");
     refreshLeaderSelect();
     renderLideresDelegate();
     renderPersonasDelegate();
@@ -405,40 +442,11 @@ $("btnLogout").addEventListener("click", () => {
   SESSION = null;
   saveSession(null);
   $("meLabel").textContent = "";
-  $("appMenu")?.classList.add("hidden");
+  closeMenu();
   setView("login");
 });
 
-// Menú clicks
-$("mCaptura")?.addEventListener("click", () => {
-  if(SESSION?.role === "admin"){
-    setActiveTab("mCaptura");
-    showAdminPage("captura");
-    renderAdminTables(null);
-  }else{
-    setActiveTab("mCaptura");
-    showDelegatePage("captura");
-    refreshLeaderSelect();
-    renderLideresDelegate();
-    renderPersonasDelegate();
-  }
-});
-
-$("mReporte")?.addEventListener("click", () => {
-  if(SESSION?.role !== "delegate") return;
-  setActiveTab("mReporte");
-  showDelegatePage("reporte");
-  renderDelegateReport();
-});
-
-$("mReporteGeneral")?.addEventListener("click", () => {
-  if(SESSION?.role !== "admin") return;
-  setActiveTab("mReporteGeneral");
-  showAdminPage("reporteGeneral");
-  renderAdminReportGeneral();
-});
-
-// Guardar líder (delegate)
+// Delegate: guardar líder
 $("btnGuardarLider")?.addEventListener("click", () => {
   $("msgLider").textContent = "";
 
@@ -447,8 +455,8 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   const telefono = $("lTelefono").value.trim();
   const direccion = $("lDireccion").value.trim();
   const zona = $("lZona").value.trim();
-  const tipo = $("lTipo").value; // A/B/C
-  const compromiso = $("lCompromiso").value; // Comprometido/No ubicado/No apoya
+  const tipo = $("lTipo").value;
+  const compromiso = $("lCompromiso").value;
 
   if(!nombre || !documento){
     $("msgLider").textContent = "❌ Nombre y documento son obligatorios.";
@@ -486,7 +494,7 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   renderPersonasDelegate();
 });
 
-// Guardar persona (delegate)
+// Delegate: guardar persona
 $("btnGuardarPersona")?.addEventListener("click", () => {
   $("msgPersona").textContent = "";
 
@@ -539,7 +547,7 @@ $("btnGuardarPersona")?.addEventListener("click", () => {
   renderPersonasDelegate();
 });
 
-// Botones de reportes
+// Botones reportes
 $("btnMiReporte")?.addEventListener("click", renderDelegateReport);
 
 $("btnAdminReporteGeneral")?.addEventListener("click", renderAdminReportGeneral);
@@ -570,17 +578,15 @@ $("btnAdminVerDelegado")?.addEventListener("click", () => {
   }
 
   $("meLabel").textContent = `${u.full_name} · ${u.role}`;
+  setView(u.role === "admin" ? "admin" : "delegate");
+  configureNavForRole(u.role);
 
   if(u.role === "admin"){
-    setView("admin");
-    configureMenuForRole("admin");
     loadAdminDelegatesSelect();
     renderAdminTables(null);
     renderAdminReportGeneral();
   }else{
     ensureDelegateStore(u.username);
-    setView("delegate");
-    configureMenuForRole("delegate");
     refreshLeaderSelect();
     renderLideresDelegate();
     renderPersonasDelegate();
