@@ -10,12 +10,10 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v5";
-const LS_DATA = "soto_data_v5"; 
-// Estructura:
+const LS_SESSION = "soto_session_v6";
+const LS_DATA = "soto_data_v6";
 // {
 //   claudia: { leaders: [...], people: [...] },
-//   angela:  { leaders: [...], people: [...] },
 //   ...
 // }
 
@@ -28,6 +26,19 @@ function escapeHtml(s){
     .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
+}
+
+function renderCompromiso(valor){
+  if(valor === "Comprometido"){
+    return `<span class="estado comprometido">Comprometido</span>`;
+  }
+  if(valor === "No ubicado"){
+    return `<span class="estado no-ubicado">No ubicado</span>`;
+  }
+  if(valor === "No apoya"){
+    return `<span class="estado no-apoya">No apoya</span>`;
+  }
+  return escapeHtml(valor || "");
 }
 
 function uid(prefix="id"){
@@ -76,7 +87,7 @@ function setView(v){
 }
 
 // ===========================
-// Render delegate
+// Delegate rendering
 // ===========================
 function delegateData(username){
   const data = loadData();
@@ -117,7 +128,7 @@ function renderLideresDelegate(){
       <td>${escapeHtml(l.direccion)}</td>
       <td>${escapeHtml(l.zona)}</td>
       <td>${escapeHtml(l.tipo)}</td>
-      <td>${escapeHtml(l.compromiso)}</td>
+      <td>${renderCompromiso(l.compromiso)}</td>
       <td>${vinculados}</td>
     `;
     tb.appendChild(tr);
@@ -155,7 +166,7 @@ function renderDelegateAll(){
 }
 
 // ===========================
-// Render admin
+// Admin rendering
 // ===========================
 function loadAdminDelegatesSelect(){
   const sel = $("adminSelDelegado");
@@ -198,7 +209,7 @@ function renderAdminTables(filterUsername = null){
         <td>${escapeHtml(l.direccion)}</td>
         <td>${escapeHtml(l.zona)}</td>
         <td>${escapeHtml(l.tipo)}</td>
-        <td>${escapeHtml(l.compromiso)}</td>
+        <td>${renderCompromiso(l.compromiso)}</td>
         <td>${vinculados}</td>
       `;
       tbL.appendChild(tr);
@@ -266,13 +277,14 @@ $("btnLogout").addEventListener("click", () => {
 // Guardar líder
 $("btnGuardarLider")?.addEventListener("click", () => {
   $("msgLider").textContent = "";
+
   const nombre = $("lNombre").value.trim();
   const documento = $("lDocumento").value.trim();
   const telefono = $("lTelefono").value.trim();
   const direccion = $("lDireccion").value.trim();
   const zona = $("lZona").value.trim();
-  const tipo = $("lTipo").value;
-  const compromiso = $("lCompromiso").value;
+  const tipo = $("lTipo").value; // A/B/C
+  const compromiso = $("lCompromiso").value; // Comprometido/No ubicado/No apoya
 
   if(!nombre || !documento){
     $("msgLider").textContent = "❌ Nombre y documento son obligatorios.";
@@ -282,7 +294,6 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   const data = ensureDelegateStore(SESSION.username);
   const store = data[SESSION.username];
 
-  // Evitar duplicado de documento en el mismo delegado
   if(store.leaders.some(l => (l.documento || "").trim() === documento)){
     $("msgLider").textContent = "❌ Ya existe un líder con ese documento (en este delegado).";
     return;
@@ -308,8 +319,8 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   $("lTelefono").value = "";
   $("lDireccion").value = "";
   $("lZona").value = "";
-  $("lTipo").value = "Sin definir";
-  $("lCompromiso").value = "Sin definir";
+  $("lTipo").value = "A";
+  $("lCompromiso").value = "Comprometido";
 
   renderDelegateAll();
 });
@@ -339,7 +350,6 @@ $("btnGuardarPersona")?.addEventListener("click", () => {
   const data = ensureDelegateStore(SESSION.username);
   const store = data[SESSION.username];
 
-  // Evitar duplicado de documento en personas del mismo delegado
   if(store.people.some(p => (p.documento || "").trim() === documento)){
     $("msgPersona").textContent = "❌ Ya existe una persona con ese documento (en este delegado).";
     return;
