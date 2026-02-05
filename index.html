@@ -7,18 +7,32 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
 
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
 </head>
 <body>
   <div class="container">
+
     <header class="top">
       <div class="leftHead">
         <h1>Sotomayor · Delegad@s</h1>
-        <nav id="appMenu" class="menu hidden">
-          <button id="mCaptura" class="tab active" type="button">Captura de datos</button>
-          <button id="mReporte" class="tab" type="button">Reporte</button>
-          <button id="mReporteGeneral" class="tab hidden" type="button">Reporte general</button>
-        </nav>
+
+        <!-- Botón menú -->
+        <button id="btnMenu" class="menuBtn hidden" type="button">☰ Menú</button>
+
+        <!-- Drawer menú -->
+        <aside id="menuDrawer" class="drawer hidden">
+          <div class="drawerHead">
+            <span class="drawerTitle">☰ Menú</span>
+            <button id="btnCloseMenu" class="iconBtn" type="button">✕</button>
+          </div>
+
+          <button id="navCaptura" class="drawerItem active" type="button">Captura</button>
+          <button id="navReportes" class="drawerItem" type="button">Reportes</button>
+          <button id="navReporteGeneral" class="drawerItem hidden" type="button">Reporte general</button>
+        </aside>
+
+        <!-- Fondo oscuro cuando abre el menú -->
+        <div id="menuBackdrop" class="backdrop hidden"></div>
       </div>
 
       <div class="right">
@@ -46,10 +60,9 @@
     <!-- DELEGATE APP -->
     <section id="viewDelegate" class="hidden">
 
-      <!-- PAGE: CAPTURA -->
-      <section id="pageCapturaDelegate" class="page">
+      <!-- PANTALLA: CAPTURA -->
+      <section id="screenDelegateCaptura" class="screen">
 
-        <!-- Registrar líder -->
         <div class="card">
           <h2>Registrar líder</h2>
           <p class="muted small">Este líder quedará asociado al delegado actual.</p>
@@ -96,7 +109,6 @@
           <p id="msgLider" class="ok"></p>
         </div>
 
-        <!-- Registrar persona vinculada -->
         <div class="card">
           <h2>Registrar persona vinculada</h2>
           <p class="muted small">Cada persona debe estar asociada a un líder de este delegado.</p>
@@ -143,7 +155,6 @@
           <p id="msgPersona" class="ok"></p>
         </div>
 
-        <!-- Tablas del delegado -->
         <div class="card">
           <h2>Mis líderes</h2>
           <div class="tableWrap">
@@ -188,11 +199,11 @@
 
       </section>
 
-      <!-- PAGE: REPORTE (delegate) -->
-      <section id="pageReporteDelegate" class="page hidden">
+      <!-- PANTALLA: REPORTE -->
+      <section id="screenDelegateReportes" class="screen hidden">
         <div class="card">
           <div class="rowTitle">
-            <h2>Reporte (Mi delegado)</h2>
+            <h2>Reportes</h2>
             <div class="toolbar">
               <button id="btnMiReporte" class="btn outline" type="button">Actualizar</button>
             </div>
@@ -206,10 +217,11 @@
     <!-- ADMIN APP -->
     <section id="viewAdmin" class="hidden">
 
-      <!-- PAGE: CAPTURA (admin - solo ver) -->
-      <section id="pageCapturaAdmin" class="page">
+      <!-- PANTALLA: CAPTURA (admin - solo ver) -->
+      <section id="screenAdminCaptura" class="screen">
+
         <div class="card">
-          <h2>Captura de datos (Vista admin)</h2>
+          <h2>Captura (Vista admin)</h2>
 
           <div class="toolbar">
             <select id="adminSelDelegado"></select>
@@ -264,13 +276,14 @@
           </div>
 
         </div>
+
       </section>
 
-      <!-- PAGE: REPORTE GENERAL (admin) -->
-      <section id="pageReporteGeneralAdmin" class="page hidden">
+      <!-- PANTALLA: REPORTE GENERAL (admin) -->
+      <section id="screenAdminReporteGeneral" class="screen hidden">
         <div class="card">
           <div class="rowTitle">
-            <h2>Reporte general (Admin)</h2>
+            <h2>Reporte general</h2>
             <div class="toolbar">
               <select id="adminSelDelegadoReport"></select>
               <button id="btnAdminReporteGeneral" class="btn" type="button">General</button>
@@ -285,6 +298,6 @@
 
   </div>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
