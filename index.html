@@ -7,7 +7,7 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
 
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
   <div class="container">
@@ -61,8 +61,13 @@
       <section id="screenDelegateCaptura" class="screen">
 
         <div class="card">
-          <h2>Registrar líder</h2>
-          <p class="muted small">Este líder quedará asociado al delegado actual.</p>
+          <div class="rowTitle">
+            <div>
+              <h2>Registrar líder</h2>
+              <p class="muted small">Este líder quedará asociado al delegado actual.</p>
+            </div>
+            <button id="btnCancelarEdicionLider" class="btn outline hidden" type="button">Cancelar edición</button>
+          </div>
 
           <label>Nombre del líder
             <input id="lNombre" placeholder="Nombre completo" />
@@ -107,8 +112,13 @@
         </div>
 
         <div class="card">
-          <h2>Registrar persona vinculada</h2>
-          <p class="muted small">Cada persona debe estar asociada a un líder de este delegado.</p>
+          <div class="rowTitle">
+            <div>
+              <h2>Registrar persona vinculada</h2>
+              <p class="muted small">Cada persona debe estar asociada a un líder de este delegado.</p>
+            </div>
+            <button id="btnCancelarEdicionPersona" class="btn outline hidden" type="button">Cancelar edición</button>
+          </div>
 
           <label>Líder
             <select id="pLider">
@@ -170,6 +180,7 @@
                   <th>Tipo</th>
                   <th>Compromiso</th>
                   <th>Vinculados</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbodyLideres"></tbody>
@@ -191,6 +202,7 @@
                   <th>Zona</th>
                   <th>Conoce</th>
                   <th>Compromete</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody id="tbodyPersonas"></tbody>
@@ -233,7 +245,6 @@
             <button id="btnExcelPorDelegado" class="btn outline" type="button">Excel por delegad@</button>
           </div>
 
-          <!-- ✅ SIEMPRE APILADO -->
           <div class="split adminStack">
             <div>
               <h3 class="sub">Líderes</h3>
@@ -302,6 +313,6 @@
 
   </div>
 
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
