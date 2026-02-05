@@ -11,7 +11,6 @@
 body{ margin:0; background:var(--bg); color:var(--text); }
 .container{ max-width:1200px; margin:0 auto; padding:18px; }
 
-/* Evita que algo empuje el layout */
 .container, .card, .split, .tableWrap { min-width: 0; max-width: 100%; }
 
 .top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px; }
@@ -66,6 +65,20 @@ textarea{ resize:vertical; }
 }
 .btn.outline{ background:transparent; border:1px solid var(--border); }
 
+/* ✅ Botones pequeños para acciones */
+.btnSm{
+  padding:6px 10px;
+  border-radius:10px;
+  font-weight:800;
+  font-size:12px;
+}
+.btnSm.danger{
+  background:transparent;
+  border:1px solid #5a1e1e;
+  color:#ffb3b3;
+}
+.btnSm.danger:hover{ background: rgba(255,0,0,.08); }
+
 .hidden{ display:none; }
 .muted{ color:var(--muted); }
 .small{ font-size:12px; }
@@ -74,7 +87,6 @@ textarea{ resize:vertical; }
 
 .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
 
-/* ✅ TABLAS: nunca rompen el card */
 .tableWrap{
   width:100%;
   max-width:100%;
@@ -86,14 +98,11 @@ textarea{ resize:vertical; }
   margin-top:10px;
 }
 
-/* ✅ La tabla se adapta, pero si necesita ancho, scrollea dentro */
 table{
   width:100%;
   border-collapse:collapse;
   table-layout:auto;
 }
-
-/* mínimo razonable (no gigante) */
 .tableWrap table{ min-width: 900px; }
 
 th, td{
@@ -114,19 +123,9 @@ td{ font-size:13px; }
 .check{ display:flex; align-items:center; gap:8px; color:var(--text); font-size:13px; }
 .check input{ width:auto; margin:0; }
 
-/* ✅ SPLIT base */
-.split{
-  display:grid;
-  grid-template-columns: 1fr;
-  gap:14px;
-}
+.split{ display:grid; grid-template-columns: 1fr; gap:14px; }
+.adminStack{ grid-template-columns: 1fr !important; }
 
-/* ✅ ADMIN: SIEMPRE APILADO (esto es lo que tú quieres) */
-.adminStack{
-  grid-template-columns: 1fr !important;
-}
-
-/* estados */
 .estado{
   font-weight:800;
   padding:4px 10px;
@@ -139,7 +138,6 @@ td{ font-size:13px; }
 .estado.no-ubicado{ background:#3a320f; color:#ffe7a3; }
 .estado.no-apoya{ background:#3a0f0f; color:#ffb3b3; }
 
-/* reportes */
 .cards{
   display:grid;
   grid-template-columns: repeat(4, minmax(160px, 1fr));
@@ -158,7 +156,6 @@ td{ font-size:13px; }
 .kpi .value{ font-size:22px; font-weight:900; margin-top:4px; }
 .kpi .sub{ color:var(--muted); font-size:12px; margin-top:6px; }
 
-/* drawer */
 .menuBtn{
   width:180px;
   text-align:left;
