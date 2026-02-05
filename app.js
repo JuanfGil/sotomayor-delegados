@@ -7,13 +7,16 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v11";
-const LS_DATA = "soto_data_v11";
+const LS_SESSION = "soto_session_v14";
+const LS_DATA = "soto_data_v14";
 
 const $ = (id) => document.getElementById(id);
 
-// ✅ FIX CLAVE: SESSION siempre existe desde el inicio
 let SESSION = null;
+
+// ✅ estados edición
+let EDIT_LIDER_ID = null;
+let EDIT_PERSONA_ID = null;
 
 // ---------- utils ----------
 function escapeHtml(s){
@@ -103,21 +106,18 @@ function setActiveNav(id){
     b.classList.toggle("active", x===id);
   });
 }
-
 function showDelegateScreen(screen){
   $("screenDelegateCaptura")?.classList.add("hidden");
   $("screenDelegateReportes")?.classList.add("hidden");
   if(screen === "captura") $("screenDelegateCaptura")?.classList.remove("hidden");
   if(screen === "reportes") $("screenDelegateReportes")?.classList.remove("hidden");
 }
-
 function showAdminScreen(screen){
   $("screenAdminCaptura")?.classList.add("hidden");
   $("screenAdminReporteGeneral")?.classList.add("hidden");
   if(screen === "captura") $("screenAdminCaptura")?.classList.remove("hidden");
   if(screen === "reporteGeneral") $("screenAdminReporteGeneral")?.classList.remove("hidden");
 }
-
 function configureNavForRole(role){
   $("navCaptura")?.classList.remove("hidden");
   $("navReportes")?.classList.toggle("hidden", role !== "delegate");
@@ -182,8 +182,10 @@ function renderLideresDelegate(){
   if(!tb) return;
   tb.innerHTML = "";
   const store = delegateData(SESSION.username);
+
   for(const l of store.leaders){
     const vinculados = countPeopleForLeader(SESSION.username, l.id);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(l.nombre)}</td>
@@ -194,9 +196,23 @@ function renderLideresDelegate(){
       <td>${escapeHtml(l.tipo)}</td>
       <td>${renderCompromiso(l.compromiso)}</td>
       <td>${vinculados}</td>
+      <td>
+        <button class="btn btnSm outline" data-act="edit-lider" data-id="${l.id}">Editar</button>
+        <button class="btn btnSm danger" data-act="del-lider" data-id="${l.id}">Eliminar</button>
+      </td>
     `;
     tb.appendChild(tr);
   }
+
+  // delegación de eventos
+  tb.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.addEventListener("click", (e)=>{
+      const act = e.currentTarget.getAttribute("data-act");
+      const id = e.currentTarget.getAttribute("data-id");
+      if(act === "edit-lider") startEditLider(id);
+      if(act === "del-lider") deleteLider(id);
+    });
+  });
 }
 
 function renderPersonasDelegate(){
@@ -205,6 +221,7 @@ function renderPersonasDelegate(){
   tb.innerHTML = "";
   const store = delegateData(SESSION.username);
   const mapLeader = new Map(store.leaders.map(l => [l.id, l.nombre]));
+
   for(const p of store.people){
     const liderNombre = mapLeader.get(p.liderId) || "(Sin líder)";
     const tr = document.createElement("tr");
@@ -217,9 +234,148 @@ function renderPersonasDelegate(){
       <td>${escapeHtml(p.zona)}</td>
       <td>${p.conoce ? "Sí" : "No"}</td>
       <td>${p.compromete ? "Sí" : "No"}</td>
+      <td>
+        <button class="btn btnSm outline" data-act="edit-persona" data-id="${p.id}">Editar</button>
+        <button class="btn btnSm danger" data-act="del-persona" data-id="${p.id}">Eliminar</button>
+      </td>
     `;
     tb.appendChild(tr);
   }
+
+  tb.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.addEventListener("click", (e)=>{
+      const act = e.currentTarget.getAttribute("data-act");
+      const id = e.currentTarget.getAttribute("data-id");
+      if(act === "edit-persona") startEditPersona(id);
+      if(act === "del-persona") deletePersona(id);
+    });
+  });
+}
+
+// ---------- EDICIÓN LÍDER ----------
+function startEditLider(id){
+  const store = delegateData(SESSION.username);
+  const l = store.leaders.find(x => x.id === id);
+  if(!l) return;
+
+  EDIT_LIDER_ID = id;
+
+  $("lNombre").value = l.nombre || "";
+  $("lDocumento").value = l.documento || "";
+  $("lTelefono").value = l.telefono || "";
+  $("lDireccion").value = l.direccion || "";
+  $("lZona").value = l.zona || "";
+  $("lTipo").value = l.tipo || "A";
+  $("lCompromiso").value = l.compromiso || "Comprometido";
+
+  $("btnGuardarLider").textContent = "Actualizar líder";
+  $("btnCancelarEdicionLider").classList.remove("hidden");
+  $("msgLider").textContent = "✏️ Editando líder...";
+}
+
+function cancelEditLider(){
+  EDIT_LIDER_ID = null;
+  $("lNombre").value = "";
+  $("lDocumento").value = "";
+  $("lTelefono").value = "";
+  $("lDireccion").value = "";
+  $("lZona").value = "";
+  $("lTipo").value = "A";
+  $("lCompromiso").value = "Comprometido";
+
+  $("btnGuardarLider").textContent = "Guardar líder";
+  $("btnCancelarEdicionLider").classList.add("hidden");
+  $("msgLider").textContent = "";
+}
+
+$("btnCancelarEdicionLider")?.addEventListener("click", cancelEditLider);
+
+function deleteLider(id){
+  const data = ensureDelegateStore(SESSION.username);
+  const store = data[SESSION.username];
+  const l = store.leaders.find(x => x.id === id);
+  if(!l) return;
+
+  const vinculados = store.people.filter(p => p.liderId === id).length;
+  const ok = confirm(`¿Eliminar el líder "${l.nombre}"?\nEsto también eliminará ${vinculados} persona(s) vinculada(s).`);
+  if(!ok) return;
+
+  // si estaba editando ese líder, cancelar
+  if(EDIT_LIDER_ID === id) cancelEditLider();
+
+  store.leaders = store.leaders.filter(x => x.id !== id);
+  store.people = store.people.filter(p => p.liderId !== id);
+
+  saveData(data);
+
+  refreshLeaderSelect();
+  renderLideresDelegate();
+  renderPersonasDelegate();
+  renderDelegateReport();
+
+  $("msgLider").textContent = "🗑️ Líder eliminado.";
+}
+
+// ---------- EDICIÓN PERSONA ----------
+function startEditPersona(id){
+  const store = delegateData(SESSION.username);
+  const p = store.people.find(x => x.id === id);
+  if(!p) return;
+
+  EDIT_PERSONA_ID = id;
+
+  $("pLider").value = p.liderId || "";
+  $("pNombre").value = p.nombre || "";
+  $("pDocumento").value = p.documento || "";
+  $("pTelefono").value = p.telefono || "";
+  $("pDireccion").value = p.direccion || "";
+  $("pZona").value = p.zona || "";
+  $("pConoce").checked = !!p.conoce;
+  $("pCompromete").checked = !!p.compromete;
+
+  $("btnGuardarPersona").textContent = "Actualizar persona";
+  $("btnCancelarEdicionPersona").classList.remove("hidden");
+  $("msgPersona").textContent = "✏️ Editando persona...";
+}
+
+function cancelEditPersona(){
+  EDIT_PERSONA_ID = null;
+
+  $("pLider").value = "";
+  $("pNombre").value = "";
+  $("pDocumento").value = "";
+  $("pTelefono").value = "";
+  $("pDireccion").value = "";
+  $("pZona").value = "";
+  $("pConoce").checked = false;
+  $("pCompromete").checked = false;
+
+  $("btnGuardarPersona").textContent = "Agregar persona";
+  $("btnCancelarEdicionPersona").classList.add("hidden");
+  $("msgPersona").textContent = "";
+}
+
+$("btnCancelarEdicionPersona")?.addEventListener("click", cancelEditPersona);
+
+function deletePersona(id){
+  const data = ensureDelegateStore(SESSION.username);
+  const store = data[SESSION.username];
+  const p = store.people.find(x => x.id === id);
+  if(!p) return;
+
+  const ok = confirm(`¿Eliminar la persona "${p.nombre}"?`);
+  if(!ok) return;
+
+  if(EDIT_PERSONA_ID === id) cancelEditPersona();
+
+  store.people = store.people.filter(x => x.id !== id);
+  saveData(data);
+
+  renderLideresDelegate();
+  renderPersonasDelegate();
+  renderDelegateReport();
+
+  $("msgPersona").textContent = "🗑️ Persona eliminada.";
 }
 
 // ---------- reports ----------
@@ -320,7 +476,7 @@ function renderAdminReportDelegate(username){
   host.appendChild(kpi("Compromete votar", r.compromete, "Total"));
 }
 
-// ---------- admin tables ----------
+// ---------- admin tables (solo visual) ----------
 function loadAdminDelegatesSelect(){
   const sel = $("adminSelDelegado");
   const sel2 = $("adminSelDelegadoReport");
@@ -399,12 +555,10 @@ function renderAdminTables(filterUsername = null){
 function xlsEscape(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
-
 function buildExcelHTML(filenameTitle, sheets){
   const parts = [];
   parts.push(`<!doctype html><html><head><meta charset="utf-8"></head><body>`);
   parts.push(`<h2>${xlsEscape(filenameTitle)}</h2>`);
-
   for(const sh of sheets){
     parts.push(`<h3>${xlsEscape(sh.name)}</h3>`);
     parts.push(`<table border="1" cellspacing="0" cellpadding="4">`);
@@ -415,11 +569,9 @@ function buildExcelHTML(filenameTitle, sheets){
     }
     parts.push(`</tbody></table><br/>`);
   }
-
   parts.push(`</body></html>`);
   return parts.join("");
 }
-
 function downloadXLS(filename, html){
   const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -431,7 +583,6 @@ function downloadXLS(filename, html){
   a.remove();
   URL.revokeObjectURL(url);
 }
-
 function todayYMD(){
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -439,7 +590,6 @@ function todayYMD(){
   const dd = String(d.getDate()).padStart(2,"0");
   return `${yyyy}-${mm}-${dd}`;
 }
-
 function exportDelegadoExcel(username){
   const u = getUser(username);
   const name = u?.full_name || username;
@@ -455,15 +605,8 @@ function exportDelegadoExcel(username){
     rows: leaders.map(l => {
       const vinculados = people.filter(p => p.liderId === l.id).length;
       return [
-        name,
-        l.nombre || "",
-        l.documento || "",
-        l.telefono || "",
-        l.direccion || "",
-        l.zona || "",
-        l.tipo || "",
-        l.compromiso || "",
-        String(vinculados)
+        name, l.nombre || "", l.documento || "", l.telefono || "", l.direccion || "",
+        l.zona || "", l.tipo || "", l.compromiso || "", String(vinculados)
       ];
     })
   };
@@ -474,15 +617,8 @@ function exportDelegadoExcel(username){
     rows: people.map(p => {
       const liderNombre = leaderMap.get(p.liderId) || "";
       return [
-        name,
-        liderNombre,
-        p.nombre || "",
-        p.documento || "",
-        p.telefono || "",
-        p.direccion || "",
-        p.zona || "",
-        p.conoce ? "Sí" : "No",
-        p.compromete ? "Sí" : "No"
+        name, liderNombre, p.nombre || "", p.documento || "", p.telefono || "",
+        p.direccion || "", p.zona || "", p.conoce ? "Sí" : "No", p.compromete ? "Sí" : "No"
       ];
     })
   };
@@ -490,7 +626,6 @@ function exportDelegadoExcel(username){
   const html = buildExcelHTML(`Sotomayor - ${name} (${todayYMD()})`, [sheetLideres, sheetPersonas]);
   downloadXLS(`Sotomayor_${username}_${todayYMD()}.xls`, html);
 }
-
 function exportGeneralExcel(){
   const delegates = allDelegatesUsernames();
   const allLeaders = [];
@@ -506,31 +641,10 @@ function exportGeneralExcel(){
 
     for(const l of leaders){
       const vinculados = people.filter(p => p.liderId === l.id).length;
-      allLeaders.push([
-        name,
-        l.nombre || "",
-        l.documento || "",
-        l.telefono || "",
-        l.direccion || "",
-        l.zona || "",
-        l.tipo || "",
-        l.compromiso || "",
-        String(vinculados)
-      ]);
+      allLeaders.push([name, l.nombre || "", l.documento || "", l.telefono || "", l.direccion || "", l.zona || "", l.tipo || "", l.compromiso || "", String(vinculados)]);
     }
-
     for(const p of people){
-      allPeople.push([
-        name,
-        leaderMap.get(p.liderId) || "",
-        p.nombre || "",
-        p.documento || "",
-        p.telefono || "",
-        p.direccion || "",
-        p.zona || "",
-        p.conoce ? "Sí" : "No",
-        p.compromete ? "Sí" : "No"
-      ]);
+      allPeople.push([name, leaderMap.get(p.liderId) || "", p.nombre || "", p.documento || "", p.telefono || "", p.direccion || "", p.zona || "", p.conoce ? "Sí" : "No", p.compromete ? "Sí" : "No"]);
     }
   }
 
@@ -539,7 +653,6 @@ function exportGeneralExcel(){
     headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
     rows: allLeaders
   };
-
   const sheetP = {
     name: "Personas (General)",
     headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
@@ -551,19 +664,15 @@ function exportGeneralExcel(){
 }
 
 // ---------- Excel buttons ----------
-$("btnExcelDelegado")?.addEventListener("click", () => {
-  exportDelegadoExcel(SESSION.username);
-});
-$("btnExcelGeneral")?.addEventListener("click", () => {
-  exportGeneralExcel();
-});
+$("btnExcelDelegado")?.addEventListener("click", () => exportDelegadoExcel(SESSION.username));
+$("btnExcelGeneral")?.addEventListener("click", () => exportGeneralExcel());
 $("btnExcelPorDelegado")?.addEventListener("click", () => {
   const du = $("adminSelDelegado")?.value;
   if(!du) return;
   exportDelegadoExcel(du);
 });
 
-// ---------- actions ----------
+// ---------- login/logout ----------
 $("btnLogin").addEventListener("click", () => {
   $("loginError").textContent = "";
   const username = $("loginUser").value.trim().toLowerCase();
@@ -603,7 +712,7 @@ $("btnLogout").addEventListener("click", () => {
   setView("login");
 });
 
-// Guardar líder
+// ---------- GUARDAR/ACTUALIZAR LÍDER ----------
 $("btnGuardarLider")?.addEventListener("click", () => {
   $("msgLider").textContent = "";
 
@@ -623,35 +732,56 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   const data = ensureDelegateStore(SESSION.username);
   const store = data[SESSION.username];
 
-  if(store.leaders.some(l => (l.documento || "").trim() === documento)){
+  // Validar duplicado por documento (permitir si es el mismo que estoy editando)
+  const existeDoc = store.leaders.some(l => (l.documento || "").trim() === documento && l.id !== EDIT_LIDER_ID);
+  if(existeDoc){
     $("msgLider").textContent = "❌ Ya existe un líder con ese documento (en este delegado).";
     return;
   }
 
-  store.leaders.push({
-    id: uid("lider"),
-    nombre, documento, telefono, direccion, zona,
-    tipo, compromiso,
-    created_at: new Date().toISOString()
-  });
+  if(EDIT_LIDER_ID){
+    const l = store.leaders.find(x => x.id === EDIT_LIDER_ID);
+    if(!l) { cancelEditLider(); return; }
 
-  saveData(data);
+    l.nombre = nombre;
+    l.documento = documento;
+    l.telefono = telefono;
+    l.direccion = direccion;
+    l.zona = zona;
+    l.tipo = tipo;
+    l.compromiso = compromiso;
+    l.updated_at = new Date().toISOString();
 
-  $("msgLider").textContent = "✅ Líder guardado.";
-  $("lNombre").value = "";
-  $("lDocumento").value = "";
-  $("lTelefono").value = "";
-  $("lDireccion").value = "";
-  $("lZona").value = "";
-  $("lTipo").value = "A";
-  $("lCompromiso").value = "Comprometido";
+    saveData(data);
+
+    $("msgLider").textContent = "✅ Líder actualizado.";
+    cancelEditLider();
+  } else {
+    store.leaders.push({
+      id: uid("lider"),
+      nombre, documento, telefono, direccion, zona,
+      tipo, compromiso,
+      created_at: new Date().toISOString()
+    });
+    saveData(data);
+
+    $("msgLider").textContent = "✅ Líder guardado.";
+    $("lNombre").value = "";
+    $("lDocumento").value = "";
+    $("lTelefono").value = "";
+    $("lDireccion").value = "";
+    $("lZona").value = "";
+    $("lTipo").value = "A";
+    $("lCompromiso").value = "Comprometido";
+  }
 
   refreshLeaderSelect();
   renderLideresDelegate();
   renderPersonasDelegate();
+  renderDelegateReport();
 });
 
-// Guardar persona
+// ---------- GUARDAR/ACTUALIZAR PERSONA ----------
 $("btnGuardarPersona")?.addEventListener("click", () => {
   $("msgPersona").textContent = "";
 
@@ -676,32 +806,54 @@ $("btnGuardarPersona")?.addEventListener("click", () => {
   const data = ensureDelegateStore(SESSION.username);
   const store = data[SESSION.username];
 
-  if(store.people.some(p => (p.documento || "").trim() === documento)){
+  const existeDoc = store.people.some(p => (p.documento || "").trim() === documento && p.id !== EDIT_PERSONA_ID);
+  if(existeDoc){
     $("msgPersona").textContent = "❌ Ya existe una persona con ese documento (en este delegado).";
     return;
   }
 
-  store.people.push({
-    id: uid("persona"),
-    liderId, nombre, documento, telefono, direccion, zona,
-    conoce, compromete,
-    created_at: new Date().toISOString()
-  });
+  if(EDIT_PERSONA_ID){
+    const p = store.people.find(x => x.id === EDIT_PERSONA_ID);
+    if(!p) { cancelEditPersona(); return; }
 
-  saveData(data);
+    p.liderId = liderId;
+    p.nombre = nombre;
+    p.documento = documento;
+    p.telefono = telefono;
+    p.direccion = direccion;
+    p.zona = zona;
+    p.conoce = conoce;
+    p.compromete = compromete;
+    p.updated_at = new Date().toISOString();
 
-  $("msgPersona").textContent = "✅ Persona agregada.";
-  $("pNombre").value = "";
-  $("pDocumento").value = "";
-  $("pTelefono").value = "";
-  $("pDireccion").value = "";
-  $("pZona").value = "";
-  $("pConoce").checked = false;
-  $("pCompromete").checked = false;
+    saveData(data);
+
+    $("msgPersona").textContent = "✅ Persona actualizada.";
+    cancelEditPersona();
+  } else {
+    store.people.push({
+      id: uid("persona"),
+      liderId, nombre, documento, telefono, direccion, zona,
+      conoce, compromete,
+      created_at: new Date().toISOString()
+    });
+
+    saveData(data);
+
+    $("msgPersona").textContent = "✅ Persona agregada.";
+    $("pNombre").value = "";
+    $("pDocumento").value = "";
+    $("pTelefono").value = "";
+    $("pDireccion").value = "";
+    $("pZona").value = "";
+    $("pConoce").checked = false;
+    $("pCompromete").checked = false;
+  }
 
   refreshLeaderSelect();
   renderLideresDelegate();
   renderPersonasDelegate();
+  renderDelegateReport();
 });
 
 // Admin filtros
@@ -719,7 +871,7 @@ $("btnAdminReporteDelegado")?.addEventListener("click", () => {
   renderAdminReportDelegate(u);
 });
 
-// ===== BOOT (FIX: SESSION se carga aquí) =====
+// ===== BOOT =====
 (function boot(){
   SESSION = loadSession();
 
