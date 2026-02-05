@@ -1,24 +1,37 @@
-const USERS = [
-  { username:"claudia", full_name:"Claudia Leiton", role:"delegate", pass:"1234" },
-  { username:"angela", full_name:"Angela Delgado", role:"delegate", pass:"1234" },
-  { username:"ana", full_name:"Ana María Peñaranda", role:"delegate", pass:"1234" },
-  { username:"gloria", full_name:"Gloria Yela", role:"delegate", pass:"1234" },
-  { username:"jose", full_name:"José Melo", role:"delegate", pass:"1234" },
-  { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
-];
+// ================================
+// CONFIG
+// ================================
+const API_BASE = (window.API_BASE || "").replace(/\/+$/, "");
+const LS_TOKEN = "soto_token_v20";
+const LS_USER = "soto_user_v20";
 
-const LS_SESSION = "soto_session_v14";
-const LS_DATA = "soto_data_v14";
+// Delegados (solo para nombres bonitos y selects en admin)
+const USERS = [
+  { username:"claudia", full_name:"Claudia Leiton", role:"delegate" },
+  { username:"angela", full_name:"Angela Delgado", role:"delegate" },
+  { username:"ana", full_name:"Ana María Peñaranda", role:"delegate" },
+  { username:"gloria", full_name:"Gloria Yela", role:"delegate" },
+  { username:"jose", full_name:"José Melo", role:"delegate" },
+  { username:"yonny", full_name:"Yonny Delgado", role:"admin" }
+];
 
 const $ = (id) => document.getElementById(id);
 
-let SESSION = null;
+// Estado en memoria (lo que traemos del backend)
+const STATE = {
+  leaders: [],   // para delegate (o admin cuando filtra)
+  people: [],    // para delegate (o admin cuando filtra)
+  adminLeaders: [],
+  adminPeople: []
+};
 
-// ✅ estados edición
+let SESSION = null; // {username, role, full_name}
 let EDIT_LIDER_ID = null;
 let EDIT_PERSONA_ID = null;
 
-// ---------- utils ----------
+// ================================
+// HELPERS
+// ================================
 function escapeHtml(s){
   return String(s ?? "")
     .replaceAll("&","&amp;")
@@ -33,46 +46,53 @@ function renderCompromiso(valor){
   if(valor === "No apoya") return `<span class="estado no-apoya">No apoya</span>`;
   return escapeHtml(valor || "");
 }
-function uid(prefix="id"){
-  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
 function getUser(username){
   return USERS.find(u => u.username === username) || null;
 }
+function allDelegates(){
+  return USERS.filter(u => u.role === "delegate");
+}
+function mustHaveApi(){
+  if(!API_BASE){
+    throw new Error("Falta API_BASE. Abre config.js y pega la URL de Render.");
+  }
+}
+function saveToken(token){ localStorage.setItem(LS_TOKEN, token); }
+function loadToken(){ return localStorage.getItem(LS_TOKEN) || ""; }
+function clearToken(){ localStorage.removeItem(LS_TOKEN); }
+function saveUser(u){ localStorage.setItem(LS_USER, JSON.stringify(u)); }
+function loadUser(){
+  try { return JSON.parse(localStorage.getItem(LS_USER) || "null"); } catch { return null; }
+}
+function clearUser(){ localStorage.removeItem(LS_USER); }
 
-// ---------- session/data ----------
-function loadSession(){
-  try { return JSON.parse(localStorage.getItem(LS_SESSION) || "null"); }
-  catch { return null; }
-}
-function saveSession(s){
-  if(!s) localStorage.removeItem(LS_SESSION);
-  else localStorage.setItem(LS_SESSION, JSON.stringify(s));
-}
-function loadData(){
-  try { return JSON.parse(localStorage.getItem(LS_DATA) || "{}"); }
-  catch { return {}; }
-}
-function saveData(data){
-  localStorage.setItem(LS_DATA, JSON.stringify(data));
-}
-function ensureDelegateStore(username){
-  const data = loadData();
-  if(!data[username]) data[username] = { leaders: [], people: [] };
-  if(!Array.isArray(data[username].leaders)) data[username].leaders = [];
-  if(!Array.isArray(data[username].people)) data[username].people = [];
-  saveData(data);
+async function apiFetch(path, opts={}){
+  mustHaveApi();
+  const token = loadToken();
+  const headers = Object.assign(
+    { "Content-Type": "application/json" },
+    opts.headers || {}
+  );
+  if(token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers
+  });
+
+  const isJson = (res.headers.get("content-type") || "").includes("application/json");
+  const data = isJson ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
+
+  if(!res.ok){
+    const msg = (data && data.error) ? data.error : `Error ${res.status}`;
+    throw new Error(msg);
+  }
   return data;
 }
-function delegateData(username){
-  const data = loadData();
-  return data[username] || { leaders: [], people: [] };
-}
-function allDelegatesUsernames(){
-  return USERS.filter(x => x.role === "delegate").map(x => x.username);
-}
 
-// ---------- views ----------
+// ================================
+// VIEWS
+// ================================
 function setView(v){
   $("viewLogin")?.classList.add("hidden");
   $("viewDelegate")?.classList.add("hidden");
@@ -86,7 +106,9 @@ function setView(v){
   if(v==="admin") $("viewAdmin")?.classList.remove("hidden");
 }
 
-// ---------- drawer ----------
+// ================================
+// DRAWER / NAV
+// ================================
 function openMenu(){
   $("menuDrawer")?.classList.remove("hidden");
   $("menuBackdrop")?.classList.remove("hidden");
@@ -106,18 +128,21 @@ function setActiveNav(id){
     b.classList.toggle("active", x===id);
   });
 }
+
 function showDelegateScreen(screen){
   $("screenDelegateCaptura")?.classList.add("hidden");
   $("screenDelegateReportes")?.classList.add("hidden");
   if(screen === "captura") $("screenDelegateCaptura")?.classList.remove("hidden");
   if(screen === "reportes") $("screenDelegateReportes")?.classList.remove("hidden");
 }
+
 function showAdminScreen(screen){
   $("screenAdminCaptura")?.classList.add("hidden");
   $("screenAdminReporteGeneral")?.classList.add("hidden");
   if(screen === "captura") $("screenAdminCaptura")?.classList.remove("hidden");
   if(screen === "reporteGeneral") $("screenAdminReporteGeneral")?.classList.remove("hidden");
 }
+
 function configureNavForRole(role){
   $("navCaptura")?.classList.remove("hidden");
   $("navReportes")?.classList.toggle("hidden", role !== "delegate");
@@ -128,64 +153,81 @@ function configureNavForRole(role){
   else showDelegateScreen("captura");
 }
 
-$("navCaptura")?.addEventListener("click", () => {
+// NAV actions
+$("navCaptura")?.addEventListener("click", async () => {
   closeMenu();
   setActiveNav("navCaptura");
-  if(SESSION?.role === "admin"){
-    showAdminScreen("captura");
-    renderAdminTables(null);
-  }else{
-    showDelegateScreen("captura");
-    refreshLeaderSelect();
-    renderLideresDelegate();
-    renderPersonasDelegate();
+
+  try{
+    if(SESSION?.role === "admin"){
+      showAdminScreen("captura");
+      await adminLoadTables(null); // ver todo
+    }else{
+      showDelegateScreen("captura");
+      await delegateLoadData();
+    }
+  }catch(e){
+    alert(e.message);
   }
 });
 
-$("navReportes")?.addEventListener("click", () => {
+$("navReportes")?.addEventListener("click", async () => {
   if(SESSION?.role !== "delegate") return;
   closeMenu();
   setActiveNav("navReportes");
   showDelegateScreen("reportes");
-  renderDelegateReport();
+  try{ await renderDelegateReport(); }catch(e){ alert(e.message); }
 });
 
-$("navReporteGeneral")?.addEventListener("click", () => {
+$("navReporteGeneral")?.addEventListener("click", async () => {
   if(SESSION?.role !== "admin") return;
   closeMenu();
   setActiveNav("navReporteGeneral");
   showAdminScreen("reporteGeneral");
-  renderAdminReportGeneral();
+  try{ await renderAdminReportGeneral(); }catch(e){ alert(e.message); }
 });
 
-// ---------- delegate render ----------
+// ================================
+// DELEGATE DATA LOAD + RENDER
+// ================================
+async function delegateLoadData(){
+  // leaders + people del delegado (backend ya filtra por token)
+  const [L, P] = await Promise.all([
+    apiFetch("/leaders"),
+    apiFetch("/people")
+  ]);
+
+  STATE.leaders = L.leaders || [];
+  STATE.people = P.people || [];
+
+  refreshLeaderSelect();
+  renderLideresDelegate();
+  renderPersonasDelegate();
+}
+
 function refreshLeaderSelect(){
   const sel = $("pLider");
   if(!sel) return;
   sel.innerHTML = `<option value="">Seleccione un líder</option>`;
-  const store = delegateData(SESSION.username);
-  for(const l of store.leaders){
+  for(const l of STATE.leaders){
     const opt = document.createElement("option");
-    opt.value = l.id;
+    opt.value = String(l.id);
     opt.textContent = l.nombre;
     sel.appendChild(opt);
   }
 }
 
-function countPeopleForLeader(delegateUsername, leaderId){
-  const store = delegateData(delegateUsername);
-  return store.people.filter(p => p.liderId === leaderId).length;
+function countPeopleForLeader(leaderId){
+  return STATE.people.filter(p => Number(p.leader_id) === Number(leaderId)).length;
 }
 
 function renderLideresDelegate(){
   const tb = $("tbodyLideres");
   if(!tb) return;
   tb.innerHTML = "";
-  const store = delegateData(SESSION.username);
 
-  for(const l of store.leaders){
-    const vinculados = countPeopleForLeader(SESSION.username, l.id);
-
+  for(const l of STATE.leaders){
+    const vinculados = countPeopleForLeader(l.id);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(l.nombre)}</td>
@@ -204,13 +246,12 @@ function renderLideresDelegate(){
     tb.appendChild(tr);
   }
 
-  // delegación de eventos
   tb.querySelectorAll("button[data-act]").forEach(btn=>{
-    btn.addEventListener("click", (e)=>{
+    btn.addEventListener("click", async (e)=>{
       const act = e.currentTarget.getAttribute("data-act");
-      const id = e.currentTarget.getAttribute("data-id");
+      const id = Number(e.currentTarget.getAttribute("data-id"));
       if(act === "edit-lider") startEditLider(id);
-      if(act === "del-lider") deleteLider(id);
+      if(act === "del-lider") await deleteLider(id);
     });
   });
 }
@@ -219,11 +260,11 @@ function renderPersonasDelegate(){
   const tb = $("tbodyPersonas");
   if(!tb) return;
   tb.innerHTML = "";
-  const store = delegateData(SESSION.username);
-  const mapLeader = new Map(store.leaders.map(l => [l.id, l.nombre]));
 
-  for(const p of store.people){
-    const liderNombre = mapLeader.get(p.liderId) || "(Sin líder)";
+  const leaderMap = new Map(STATE.leaders.map(l => [Number(l.id), l.nombre]));
+
+  for(const p of STATE.people){
+    const liderNombre = leaderMap.get(Number(p.leader_id)) || "(Sin líder)";
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(liderNombre)}</td>
@@ -243,22 +284,23 @@ function renderPersonasDelegate(){
   }
 
   tb.querySelectorAll("button[data-act]").forEach(btn=>{
-    btn.addEventListener("click", (e)=>{
+    btn.addEventListener("click", async (e)=>{
       const act = e.currentTarget.getAttribute("data-act");
-      const id = e.currentTarget.getAttribute("data-id");
+      const id = Number(e.currentTarget.getAttribute("data-id"));
       if(act === "edit-persona") startEditPersona(id);
-      if(act === "del-persona") deletePersona(id);
+      if(act === "del-persona") await deletePersona(id);
     });
   });
 }
 
-// ---------- EDICIÓN LÍDER ----------
+// ================================
+// EDITAR / ELIMINAR (DELEGATE)
+// ================================
 function startEditLider(id){
-  const store = delegateData(SESSION.username);
-  const l = store.leaders.find(x => x.id === id);
+  const l = STATE.leaders.find(x => Number(x.id) === Number(id));
   if(!l) return;
 
-  EDIT_LIDER_ID = id;
+  EDIT_LIDER_ID = Number(id);
 
   $("lNombre").value = l.nombre || "";
   $("lDocumento").value = l.documento || "";
@@ -272,7 +314,6 @@ function startEditLider(id){
   $("btnCancelarEdicionLider").classList.remove("hidden");
   $("msgLider").textContent = "✏️ Editando líder...";
 }
-
 function cancelEditLider(){
   EDIT_LIDER_ID = null;
   $("lNombre").value = "";
@@ -287,44 +328,32 @@ function cancelEditLider(){
   $("btnCancelarEdicionLider").classList.add("hidden");
   $("msgLider").textContent = "";
 }
-
 $("btnCancelarEdicionLider")?.addEventListener("click", cancelEditLider);
 
-function deleteLider(id){
-  const data = ensureDelegateStore(SESSION.username);
-  const store = data[SESSION.username];
-  const l = store.leaders.find(x => x.id === id);
+async function deleteLider(id){
+  const l = STATE.leaders.find(x => Number(x.id) === Number(id));
   if(!l) return;
 
-  const vinculados = store.people.filter(p => p.liderId === id).length;
+  const vinculados = countPeopleForLeader(id);
   const ok = confirm(`¿Eliminar el líder "${l.nombre}"?\nEsto también eliminará ${vinculados} persona(s) vinculada(s).`);
   if(!ok) return;
 
-  // si estaba editando ese líder, cancelar
-  if(EDIT_LIDER_ID === id) cancelEditLider();
+  await apiFetch(`/leaders/${id}`, { method:"DELETE" });
 
-  store.leaders = store.leaders.filter(x => x.id !== id);
-  store.people = store.people.filter(p => p.liderId !== id);
+  if(EDIT_LIDER_ID === Number(id)) cancelEditLider();
 
-  saveData(data);
-
-  refreshLeaderSelect();
-  renderLideresDelegate();
-  renderPersonasDelegate();
-  renderDelegateReport();
-
+  await delegateLoadData();
+  await renderDelegateReport();
   $("msgLider").textContent = "🗑️ Líder eliminado.";
 }
 
-// ---------- EDICIÓN PERSONA ----------
 function startEditPersona(id){
-  const store = delegateData(SESSION.username);
-  const p = store.people.find(x => x.id === id);
+  const p = STATE.people.find(x => Number(x.id) === Number(id));
   if(!p) return;
 
-  EDIT_PERSONA_ID = id;
+  EDIT_PERSONA_ID = Number(id);
 
-  $("pLider").value = p.liderId || "";
+  $("pLider").value = String(p.leader_id || "");
   $("pNombre").value = p.nombre || "";
   $("pDocumento").value = p.documento || "";
   $("pTelefono").value = p.telefono || "";
@@ -337,7 +366,6 @@ function startEditPersona(id){
   $("btnCancelarEdicionPersona").classList.remove("hidden");
   $("msgPersona").textContent = "✏️ Editando persona...";
 }
-
 function cancelEditPersona(){
   EDIT_PERSONA_ID = null;
 
@@ -354,59 +382,117 @@ function cancelEditPersona(){
   $("btnCancelarEdicionPersona").classList.add("hidden");
   $("msgPersona").textContent = "";
 }
-
 $("btnCancelarEdicionPersona")?.addEventListener("click", cancelEditPersona);
 
-function deletePersona(id){
-  const data = ensureDelegateStore(SESSION.username);
-  const store = data[SESSION.username];
-  const p = store.people.find(x => x.id === id);
+async function deletePersona(id){
+  const p = STATE.people.find(x => Number(x.id) === Number(id));
   if(!p) return;
-
   const ok = confirm(`¿Eliminar la persona "${p.nombre}"?`);
   if(!ok) return;
 
-  if(EDIT_PERSONA_ID === id) cancelEditPersona();
+  await apiFetch(`/people/${id}`, { method:"DELETE" });
 
-  store.people = store.people.filter(x => x.id !== id);
-  saveData(data);
+  if(EDIT_PERSONA_ID === Number(id)) cancelEditPersona();
 
-  renderLideresDelegate();
-  renderPersonasDelegate();
-  renderDelegateReport();
-
+  await delegateLoadData();
+  await renderDelegateReport();
   $("msgPersona").textContent = "🗑️ Persona eliminada.";
 }
 
-// ---------- reports ----------
-function buildReportForDelegate(username){
-  const store = delegateData(username);
-  const leaders = store.leaders || [];
-  const people = store.people || [];
+// ================================
+// GUARDAR / ACTUALIZAR (DELEGATE)
+// ================================
+$("btnGuardarLider")?.addEventListener("click", async () => {
+  $("msgLider").textContent = "";
+  try{
+    const payload = {
+      nombre: $("lNombre").value.trim(),
+      documento: $("lDocumento").value.trim(),
+      telefono: $("lTelefono").value.trim(),
+      direccion: $("lDireccion").value.trim(),
+      zona: $("lZona").value.trim(),
+      tipo: $("lTipo").value,
+      compromiso: $("lCompromiso").value
+    };
 
-  const tipoA = leaders.filter(l => l.tipo === "A").length;
-  const tipoB = leaders.filter(l => l.tipo === "B").length;
-  const tipoC = leaders.filter(l => l.tipo === "C").length;
+    if(!payload.nombre || !payload.documento){
+      $("msgLider").textContent = "❌ Nombre y documento son obligatorios.";
+      return;
+    }
 
-  const compOK = leaders.filter(l => l.compromiso === "Comprometido").length;
-  const compNU = leaders.filter(l => l.compromiso === "No ubicado").length;
-  const compNA = leaders.filter(l => l.compromiso === "No apoya").length;
+    if(EDIT_LIDER_ID){
+      await apiFetch(`/leaders/${EDIT_LIDER_ID}`, { method:"PUT", body: JSON.stringify(payload) });
+      $("msgLider").textContent = "✅ Líder actualizado.";
+      cancelEditLider();
+    }else{
+      await apiFetch(`/leaders`, { method:"POST", body: JSON.stringify(payload) });
+      $("msgLider").textContent = "✅ Líder guardado.";
+      $("lNombre").value = "";
+      $("lDocumento").value = "";
+      $("lTelefono").value = "";
+      $("lDireccion").value = "";
+      $("lZona").value = "";
+      $("lTipo").value = "A";
+      $("lCompromiso").value = "Comprometido";
+    }
 
-  const conoce = people.filter(p => p.conoce).length;
-  const compromete = people.filter(p => p.compromete).length;
-
-  return { leadersTotal: leaders.length, peopleTotal: people.length, tipoA, tipoB, tipoC, compOK, compNU, compNA, conoce, compromete };
-}
-
-function buildReportGeneral(){
-  const totals = { leadersTotal:0, peopleTotal:0, tipoA:0, tipoB:0, tipoC:0, compOK:0, compNU:0, compNA:0, conoce:0, compromete:0 };
-  for(const d of allDelegatesUsernames()){
-    const r = buildReportForDelegate(d);
-    Object.keys(totals).forEach(k => totals[k] += (r[k] || 0));
+    await delegateLoadData();
+    await renderDelegateReport();
+  }catch(e){
+    $("msgLider").textContent = "❌ " + e.message;
   }
-  return totals;
-}
+});
 
+$("btnGuardarPersona")?.addEventListener("click", async () => {
+  $("msgPersona").textContent = "";
+  try{
+    const leader_id = Number($("pLider").value);
+    const payload = {
+      leader_id,
+      nombre: $("pNombre").value.trim(),
+      documento: $("pDocumento").value.trim(),
+      telefono: $("pTelefono").value.trim(),
+      direccion: $("pDireccion").value.trim(),
+      zona: $("pZona").value.trim(),
+      conoce: $("pConoce").checked,
+      compromete: $("pCompromete").checked
+    };
+
+    if(!leader_id){
+      $("msgPersona").textContent = "❌ Debes seleccionar un líder.";
+      return;
+    }
+    if(!payload.nombre || !payload.documento){
+      $("msgPersona").textContent = "❌ Nombre y documento son obligatorios.";
+      return;
+    }
+
+    if(EDIT_PERSONA_ID){
+      await apiFetch(`/people/${EDIT_PERSONA_ID}`, { method:"PUT", body: JSON.stringify(payload) });
+      $("msgPersona").textContent = "✅ Persona actualizada.";
+      cancelEditPersona();
+    }else{
+      await apiFetch(`/people`, { method:"POST", body: JSON.stringify(payload) });
+      $("msgPersona").textContent = "✅ Persona agregada.";
+      $("pNombre").value = "";
+      $("pDocumento").value = "";
+      $("pTelefono").value = "";
+      $("pDireccion").value = "";
+      $("pZona").value = "";
+      $("pConoce").checked = false;
+      $("pCompromete").checked = false;
+    }
+
+    await delegateLoadData();
+    await renderDelegateReport();
+  }catch(e){
+    $("msgPersona").textContent = "❌ " + e.message;
+  }
+});
+
+// ================================
+// REPORTES (desde backend)
+// ================================
 function kpi(label, value, sub=""){
   const div = document.createElement("div");
   div.className = "kpi";
@@ -418,72 +504,96 @@ function kpi(label, value, sub=""){
   return div;
 }
 
-function renderDelegateReport(){
+async function renderDelegateReport(){
   const host = $("delegateReportCards");
   if(!host) return;
   host.innerHTML = "";
-  const r = buildReportForDelegate(SESSION.username);
 
-  host.appendChild(kpi("Líderes", r.leadersTotal, "Total líderes"));
-  host.appendChild(kpi("Personas", r.peopleTotal, "Total vinculadas"));
-  host.appendChild(kpi("Tipo A", r.tipoA, "Líderes A"));
-  host.appendChild(kpi("Tipo B", r.tipoB, "Líderes B"));
-  host.appendChild(kpi("Tipo C", r.tipoC, "Líderes C"));
-  host.appendChild(kpi("Comprometido", r.compOK, "Líderes comprometidos"));
-  host.appendChild(kpi("No ubicado", r.compNU, "Líderes no ubicados"));
-  host.appendChild(kpi("No apoya", r.compNA, "Líderes no apoyan"));
-  host.appendChild(kpi("Conoce líder", r.conoce, "Personas que conocen"));
-  host.appendChild(kpi("Compromete votar", r.compromete, "Personas comprometidas"));
+  const r = await apiFetch(`/reports/delegate/${encodeURIComponent(SESSION.username)}`);
+
+  const tipo = new Map((r.tipo || []).map(x => [x.tipo, x.total]));
+  const comp = new Map((r.compromiso || []).map(x => [x.compromiso, x.total]));
+  const flags = r.flags || { conoce:0, compromete:0 };
+
+  host.appendChild(kpi("Líderes", r.leaders, "Total líderes"));
+  host.appendChild(kpi("Personas", r.people, "Total vinculadas"));
+  host.appendChild(kpi("Tipo A", tipo.get("A") || 0, "Líderes A"));
+  host.appendChild(kpi("Tipo B", tipo.get("B") || 0, "Líderes B"));
+  host.appendChild(kpi("Tipo C", tipo.get("C") || 0, "Líderes C"));
+  host.appendChild(kpi("Comprometido", comp.get("Comprometido") || 0, "Líderes comprometidos"));
+  host.appendChild(kpi("No ubicado", comp.get("No ubicado") || 0, "Líderes no ubicados"));
+  host.appendChild(kpi("No apoya", comp.get("No apoya") || 0, "Líderes no apoyan"));
+  host.appendChild(kpi("Conoce líder", flags.conoce || 0, "Personas que conocen"));
+  host.appendChild(kpi("Compromete votar", flags.compromete || 0, "Personas comprometidas"));
 }
 
-function renderAdminReportGeneral(){
+async function renderAdminReportGeneral(){
   const host = $("adminReportCards");
   if(!host) return;
   host.innerHTML = "";
-  const r = buildReportGeneral();
 
-  host.appendChild(kpi("Líderes", r.leadersTotal, "Total general"));
-  host.appendChild(kpi("Personas", r.peopleTotal, "Total general"));
-  host.appendChild(kpi("Tipo A", r.tipoA, "General"));
-  host.appendChild(kpi("Tipo B", r.tipoB, "General"));
-  host.appendChild(kpi("Tipo C", r.tipoC, "General"));
-  host.appendChild(kpi("Comprometido", r.compOK, "General"));
-  host.appendChild(kpi("No ubicado", r.compNU, "General"));
-  host.appendChild(kpi("No apoya", r.compNA, "General"));
-  host.appendChild(kpi("Conoce líder", r.conoce, "General"));
-  host.appendChild(kpi("Compromete votar", r.compromete, "General"));
+  const r = await apiFetch(`/reports/general`);
+
+  host.appendChild(kpi("Líderes", r.leaders, "Total general"));
+  host.appendChild(kpi("Personas", r.people, "Total general"));
+
+  // Totales por delegado (resumen)
+  const leadersBy = new Map((r.leaders_by_delegate || []).map(x => [x.delegate_username, x.total]));
+  const peopleBy = new Map((r.people_by_delegate || []).map(x => [x.delegate_username, x.total]));
+
+  for(const d of allDelegates()){
+    host.appendChild(kpi(
+      d.full_name,
+      `${leadersBy.get(d.username) || 0} / ${peopleBy.get(d.username) || 0}`,
+      "Líderes / Personas"
+    ));
+  }
 }
 
-function renderAdminReportDelegate(username){
+async function renderAdminReportDelegate(username){
   const host = $("adminReportCards");
   if(!host) return;
   host.innerHTML = "";
+
+  const r = await apiFetch(`/reports/delegate/${encodeURIComponent(username)}`);
+  const tipo = new Map((r.tipo || []).map(x => [x.tipo, x.total]));
+  const comp = new Map((r.compromiso || []).map(x => [x.compromiso, x.total]));
+  const flags = r.flags || { conoce:0, compromete:0 };
 
   const u = getUser(username);
-  const name = u?.full_name || username;
-  const r = buildReportForDelegate(username);
-
-  host.appendChild(kpi("Delegad@", name, "Reporte por delegad@"));
-  host.appendChild(kpi("Líderes", r.leadersTotal, "Total"));
-  host.appendChild(kpi("Personas", r.peopleTotal, "Total"));
-  host.appendChild(kpi("Tipo A", r.tipoA, "Total"));
-  host.appendChild(kpi("Tipo B", r.tipoB, "Total"));
-  host.appendChild(kpi("Tipo C", r.tipoC, "Total"));
-  host.appendChild(kpi("Comprometido", r.compOK, "Total"));
-  host.appendChild(kpi("No ubicado", r.compNU, "Total"));
-  host.appendChild(kpi("No apoya", r.compNA, "Total"));
-  host.appendChild(kpi("Conoce líder", r.conoce, "Total"));
-  host.appendChild(kpi("Compromete votar", r.compromete, "Total"));
+  host.appendChild(kpi("Delegad@", u?.full_name || username, "Reporte por delegad@"));
+  host.appendChild(kpi("Líderes", r.leaders, "Total"));
+  host.appendChild(kpi("Personas", r.people, "Total"));
+  host.appendChild(kpi("Tipo A", tipo.get("A") || 0, "Total"));
+  host.appendChild(kpi("Tipo B", tipo.get("B") || 0, "Total"));
+  host.appendChild(kpi("Tipo C", tipo.get("C") || 0, "Total"));
+  host.appendChild(kpi("Comprometido", comp.get("Comprometido") || 0, "Total"));
+  host.appendChild(kpi("No ubicado", comp.get("No ubicado") || 0, "Total"));
+  host.appendChild(kpi("No apoya", comp.get("No apoya") || 0, "Total"));
+  host.appendChild(kpi("Conoce líder", flags.conoce || 0, "Total"));
+  host.appendChild(kpi("Compromete votar", flags.compromete || 0, "Total"));
 }
 
-// ---------- admin tables (solo visual) ----------
+// botones reportes
+$("btnMiReporte")?.addEventListener("click", async ()=>{ try{ await renderDelegateReport(); }catch(e){ alert(e.message);} });
+$("btnAdminReporteGeneral")?.addEventListener("click", async ()=>{ try{ await renderAdminReportGeneral(); }catch(e){ alert(e.message);} });
+$("btnAdminReporteDelegado")?.addEventListener("click", async ()=>{
+  try{
+    const u = $("adminSelDelegadoReport").value;
+    await renderAdminReportDelegate(u);
+  }catch(e){ alert(e.message); }
+});
+
+// ================================
+// ADMIN TABLES (carga desde backend)
+// ================================
 function loadAdminDelegatesSelect(){
   const sel = $("adminSelDelegado");
   const sel2 = $("adminSelDelegadoReport");
   if(sel) sel.innerHTML = "";
   if(sel2) sel2.innerHTML = "";
 
-  for(const u of USERS.filter(x => x.role === "delegate")){
+  for(const u of allDelegates()){
     const opt1 = document.createElement("option");
     opt1.value = u.username;
     opt1.textContent = u.full_name;
@@ -496,7 +606,20 @@ function loadAdminDelegatesSelect(){
   }
 }
 
-function renderAdminTables(filterUsername = null){
+async function adminLoadTables(delegateOrNull){
+  // admin: puede pedir todo o filtrar por delegate
+  const q = delegateOrNull ? `?delegate=${encodeURIComponent(delegateOrNull)}` : "";
+  const [L, P] = await Promise.all([
+    apiFetch(`/leaders${q}`),
+    apiFetch(`/people${q}`)
+  ]);
+
+  STATE.adminLeaders = L.leaders || [];
+  STATE.adminPeople = P.people || [];
+  renderAdminTables();
+}
+
+function renderAdminTables(){
   const tbL = $("tbodyAdminLideres");
   const tbP = $("tbodyAdminPersonas");
   if(!tbL || !tbP) return;
@@ -504,54 +627,60 @@ function renderAdminTables(filterUsername = null){
   tbL.innerHTML = "";
   tbP.innerHTML = "";
 
-  const data = loadData();
-  const delegates = filterUsername ? [filterUsername] : allDelegatesUsernames();
+  const leaderIdToName = new Map(STATE.adminLeaders.map(l => [Number(l.id), l.nombre]));
 
-  for(const du of delegates){
-    const user = getUser(du);
-    const delegateName = user?.full_name || du;
-    const store = data[du] || { leaders: [], people: [] };
-    const leaderMap = new Map((store.leaders||[]).map(l => [l.id, l.nombre]));
+  for(const l of STATE.adminLeaders){
+    const delegadoName = getUser(l.delegate_username)?.full_name || l.delegate_username;
+    const vinculados = STATE.adminPeople.filter(p => Number(p.leader_id) === Number(l.id)).length;
 
-    for(const l of store.leaders || []){
-      const vinculados = (store.people || []).filter(p => p.liderId === l.id).length;
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(delegateName)}</td>
-        <td>${escapeHtml(l.nombre)}</td>
-        <td>${escapeHtml(l.documento)}</td>
-        <td>${escapeHtml(l.telefono)}</td>
-        <td>${escapeHtml(l.direccion)}</td>
-        <td>${escapeHtml(l.zona)}</td>
-        <td>${escapeHtml(l.tipo)}</td>
-        <td>${renderCompromiso(l.compromiso)}</td>
-        <td>${vinculados}</td>
-      `;
-      tbL.appendChild(tr);
-    }
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(delegadoName)}</td>
+      <td>${escapeHtml(l.nombre)}</td>
+      <td>${escapeHtml(l.documento)}</td>
+      <td>${escapeHtml(l.telefono)}</td>
+      <td>${escapeHtml(l.direccion)}</td>
+      <td>${escapeHtml(l.zona)}</td>
+      <td>${escapeHtml(l.tipo)}</td>
+      <td>${renderCompromiso(l.compromiso)}</td>
+      <td>${vinculados}</td>
+    `;
+    tbL.appendChild(tr);
+  }
 
-    for(const p of store.people || []){
-      const liderNombre = leaderMap.get(p.liderId) || "(Sin líder)";
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(delegateName)}</td>
-        <td>${escapeHtml(liderNombre)}</td>
-        <td>${escapeHtml(p.nombre)}</td>
-        <td>${escapeHtml(p.documento)}</td>
-        <td>${escapeHtml(p.telefono)}</td>
-        <td>${escapeHtml(p.direccion)}</td>
-        <td>${escapeHtml(p.zona)}</td>
-        <td>${p.conoce ? "Sí" : "No"}</td>
-        <td>${p.compromete ? "Sí" : "No"}</td>
-      `;
-      tbP.appendChild(tr);
-    }
+  for(const p of STATE.adminPeople){
+    const delegadoName = getUser(p.delegate_username)?.full_name || p.delegate_username;
+    const liderNombre = p.leader_nombre || leaderIdToName.get(Number(p.leader_id)) || "(Sin líder)";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(delegadoName)}</td>
+      <td>${escapeHtml(liderNombre)}</td>
+      <td>${escapeHtml(p.nombre)}</td>
+      <td>${escapeHtml(p.documento)}</td>
+      <td>${escapeHtml(p.telefono)}</td>
+      <td>${escapeHtml(p.direccion)}</td>
+      <td>${escapeHtml(p.zona)}</td>
+      <td>${p.conoce ? "Sí" : "No"}</td>
+      <td>${p.compromete ? "Sí" : "No"}</td>
+    `;
+    tbP.appendChild(tr);
   }
 }
 
-// =====================================================
+$("btnAdminVerTodo")?.addEventListener("click", async ()=>{
+  try{ await adminLoadTables(null); }catch(e){ alert(e.message); }
+});
+$("btnAdminVerDelegado")?.addEventListener("click", async ()=>{
+  try{
+    const u = $("adminSelDelegado").value;
+    await adminLoadTables(u);
+  }catch(e){ alert(e.message); }
+});
+
+// ================================
 // EXCEL EXPORT (sin librerías)
-// =====================================================
+// ================================
 function xlsEscape(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
@@ -590,20 +719,16 @@ function todayYMD(){
   const dd = String(d.getDate()).padStart(2,"0");
   return `${yyyy}-${mm}-${dd}`;
 }
-function exportDelegadoExcel(username){
-  const u = getUser(username);
-  const name = u?.full_name || username;
-  const store = delegateData(username);
 
-  const leaders = store.leaders || [];
-  const people = store.people || [];
-  const leaderMap = new Map(leaders.map(l => [l.id, l.nombre]));
+function exportDelegadoExcelFromState(delegateUsername, leaders, people){
+  const name = getUser(delegateUsername)?.full_name || delegateUsername;
+  const leaderMap = new Map(leaders.map(l => [Number(l.id), l.nombre]));
 
   const sheetLideres = {
     name: "Líderes",
     headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
     rows: leaders.map(l => {
-      const vinculados = people.filter(p => p.liderId === l.id).length;
+      const vinculados = people.filter(p => Number(p.leader_id) === Number(l.id)).length;
       return [
         name, l.nombre || "", l.documento || "", l.telefono || "", l.direccion || "",
         l.zona || "", l.tipo || "", l.compromiso || "", String(vinculados)
@@ -615,7 +740,7 @@ function exportDelegadoExcel(username){
     name: "Personas vinculadas",
     headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
     rows: people.map(p => {
-      const liderNombre = leaderMap.get(p.liderId) || "";
+      const liderNombre = p.leader_nombre || leaderMap.get(Number(p.leader_id)) || "";
       return [
         name, liderNombre, p.nombre || "", p.documento || "", p.telefono || "",
         p.direccion || "", p.zona || "", p.conoce ? "Sí" : "No", p.compromete ? "Sí" : "No"
@@ -624,283 +749,128 @@ function exportDelegadoExcel(username){
   };
 
   const html = buildExcelHTML(`Sotomayor - ${name} (${todayYMD()})`, [sheetLideres, sheetPersonas]);
-  downloadXLS(`Sotomayor_${username}_${todayYMD()}.xls`, html);
+  downloadXLS(`Sotomayor_${delegateUsername}_${todayYMD()}.xls`, html);
 }
-function exportGeneralExcel(){
-  const delegates = allDelegatesUsernames();
-  const allLeaders = [];
-  const allPeople = [];
 
-  for(const du of delegates){
-    const u = getUser(du);
-    const name = u?.full_name || du;
-    const store = delegateData(du);
-    const leaders = store.leaders || [];
-    const people = store.people || [];
-    const leaderMap = new Map(leaders.map(l => [l.id, l.nombre]));
+$("btnExcelDelegado")?.addEventListener("click", () => {
+  exportDelegadoExcelFromState(SESSION.username, STATE.leaders, STATE.people);
+});
 
-    for(const l of leaders){
-      const vinculados = people.filter(p => p.liderId === l.id).length;
-      allLeaders.push([name, l.nombre || "", l.documento || "", l.telefono || "", l.direccion || "", l.zona || "", l.tipo || "", l.compromiso || "", String(vinculados)]);
-    }
-    for(const p of people){
-      allPeople.push([name, leaderMap.get(p.liderId) || "", p.nombre || "", p.documento || "", p.telefono || "", p.direccion || "", p.zona || "", p.conoce ? "Sí" : "No", p.compromete ? "Sí" : "No"]);
-    }
-  }
+$("btnExcelPorDelegado")?.addEventListener("click", () => {
+  const du = $("adminSelDelegado")?.value;
+  const leaders = STATE.adminLeaders.filter(l => l.delegate_username === du);
+  const people = STATE.adminPeople.filter(p => p.delegate_username === du);
+  exportDelegadoExcelFromState(du, leaders, people);
+});
+
+$("btnExcelGeneral")?.addEventListener("click", () => {
+  // Exporta lo que el admin tiene cargado (si estaba en "ver todo", es todo)
+  const sheets = [];
 
   const sheetL = {
     name: "Líderes (General)",
     headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
-    rows: allLeaders
+    rows: STATE.adminLeaders.map(l => {
+      const dname = getUser(l.delegate_username)?.full_name || l.delegate_username;
+      const vinculados = STATE.adminPeople.filter(p => Number(p.leader_id) === Number(l.id)).length;
+      return [dname, l.nombre||"", l.documento||"", l.telefono||"", l.direccion||"", l.zona||"", l.tipo||"", l.compromiso||"", String(vinculados)];
+    })
   };
+
   const sheetP = {
     name: "Personas (General)",
     headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
-    rows: allPeople
+    rows: STATE.adminPeople.map(p => {
+      const dname = getUser(p.delegate_username)?.full_name || p.delegate_username;
+      return [dname, p.leader_nombre||"", p.nombre||"", p.documento||"", p.telefono||"", p.direccion||"", p.zona||"", p.conoce?"Sí":"No", p.compromete?"Sí":"No"];
+    })
   };
 
-  const html = buildExcelHTML(`Sotomayor - GENERAL (${todayYMD()})`, [sheetL, sheetP]);
+  sheets.push(sheetL, sheetP);
+  const html = buildExcelHTML(`Sotomayor - GENERAL (${todayYMD()})`, sheets);
   downloadXLS(`Sotomayor_GENERAL_${todayYMD()}.xls`, html);
-}
-
-// ---------- Excel buttons ----------
-$("btnExcelDelegado")?.addEventListener("click", () => exportDelegadoExcel(SESSION.username));
-$("btnExcelGeneral")?.addEventListener("click", () => exportGeneralExcel());
-$("btnExcelPorDelegado")?.addEventListener("click", () => {
-  const du = $("adminSelDelegado")?.value;
-  if(!du) return;
-  exportDelegadoExcel(du);
 });
 
-// ---------- login/logout ----------
-$("btnLogin").addEventListener("click", () => {
+// ================================
+// LOGIN / LOGOUT
+// ================================
+$("btnLogin")?.addEventListener("click", async () => {
   $("loginError").textContent = "";
-  const username = $("loginUser").value.trim().toLowerCase();
-  const password = $("loginPass").value;
 
-  const u = getUser(username);
-  if(!u || u.pass !== password){
-    $("loginError").textContent = "Credenciales inválidas.";
-    return;
-  }
+  try{
+    const username = $("loginUser").value.trim().toLowerCase();
+    const password = $("loginPass").value;
 
-  SESSION = { username: u.username, role: u.role };
-  saveSession(SESSION);
+    const r = await apiFetch("/auth/login", {
+      method:"POST",
+      body: JSON.stringify({ username, password })
+    });
 
-  $("meLabel").textContent = `${u.full_name} · ${u.role}`;
-  setView(u.role === "admin" ? "admin" : "delegate");
-  configureNavForRole(u.role);
+    saveToken(r.token);
+    saveUser(r.user);
 
-  if(u.role === "admin"){
-    loadAdminDelegatesSelect();
-    renderAdminTables(null);
-    renderAdminReportGeneral();
-  }else{
-    ensureDelegateStore(u.username);
-    refreshLeaderSelect();
-    renderLideresDelegate();
-    renderPersonasDelegate();
-    renderDelegateReport();
+    SESSION = r.user;
+
+    $("meLabel").textContent = `${SESSION.full_name} · ${SESSION.role}`;
+    setView(SESSION.role === "admin" ? "admin" : "delegate");
+    configureNavForRole(SESSION.role);
+
+    if(SESSION.role === "admin"){
+      loadAdminDelegatesSelect();
+      await adminLoadTables(null);
+      await renderAdminReportGeneral();
+    } else {
+      await delegateLoadData();
+      await renderDelegateReport();
+    }
+  }catch(e){
+    $("loginError").textContent = e.message;
   }
 });
 
-$("btnLogout").addEventListener("click", () => {
+$("btnLogout")?.addEventListener("click", () => {
   SESSION = null;
-  saveSession(null);
-  $("meLabel").textContent = "";
+  clearToken();
+  clearUser();
   closeMenu();
   setView("login");
+  $("meLabel").textContent = "";
 });
 
-// ---------- GUARDAR/ACTUALIZAR LÍDER ----------
-$("btnGuardarLider")?.addEventListener("click", () => {
-  $("msgLider").textContent = "";
+// ================================
+// BOOT
+// ================================
+(async function boot(){
+  try{
+    const saved = loadUser();
+    const token = loadToken();
 
-  const nombre = $("lNombre").value.trim();
-  const documento = $("lDocumento").value.trim();
-  const telefono = $("lTelefono").value.trim();
-  const direccion = $("lDireccion").value.trim();
-  const zona = $("lZona").value.trim();
-  const tipo = $("lTipo").value;
-  const compromiso = $("lCompromiso").value;
+    if(!saved || !token){
+      setView("login");
+      return;
+    }
 
-  if(!nombre || !documento){
-    $("msgLider").textContent = "❌ Nombre y documento son obligatorios.";
-    return;
-  }
+    // Validamos token con /me
+    SESSION = saved;
+    await apiFetch("/me");
 
-  const data = ensureDelegateStore(SESSION.username);
-  const store = data[SESSION.username];
+    $("meLabel").textContent = `${SESSION.full_name} · ${SESSION.role}`;
+    setView(SESSION.role === "admin" ? "admin" : "delegate");
+    configureNavForRole(SESSION.role);
 
-  // Validar duplicado por documento (permitir si es el mismo que estoy editando)
-  const existeDoc = store.leaders.some(l => (l.documento || "").trim() === documento && l.id !== EDIT_LIDER_ID);
-  if(existeDoc){
-    $("msgLider").textContent = "❌ Ya existe un líder con ese documento (en este delegado).";
-    return;
-  }
-
-  if(EDIT_LIDER_ID){
-    const l = store.leaders.find(x => x.id === EDIT_LIDER_ID);
-    if(!l) { cancelEditLider(); return; }
-
-    l.nombre = nombre;
-    l.documento = documento;
-    l.telefono = telefono;
-    l.direccion = direccion;
-    l.zona = zona;
-    l.tipo = tipo;
-    l.compromiso = compromiso;
-    l.updated_at = new Date().toISOString();
-
-    saveData(data);
-
-    $("msgLider").textContent = "✅ Líder actualizado.";
-    cancelEditLider();
-  } else {
-    store.leaders.push({
-      id: uid("lider"),
-      nombre, documento, telefono, direccion, zona,
-      tipo, compromiso,
-      created_at: new Date().toISOString()
-    });
-    saveData(data);
-
-    $("msgLider").textContent = "✅ Líder guardado.";
-    $("lNombre").value = "";
-    $("lDocumento").value = "";
-    $("lTelefono").value = "";
-    $("lDireccion").value = "";
-    $("lZona").value = "";
-    $("lTipo").value = "A";
-    $("lCompromiso").value = "Comprometido";
-  }
-
-  refreshLeaderSelect();
-  renderLideresDelegate();
-  renderPersonasDelegate();
-  renderDelegateReport();
-});
-
-// ---------- GUARDAR/ACTUALIZAR PERSONA ----------
-$("btnGuardarPersona")?.addEventListener("click", () => {
-  $("msgPersona").textContent = "";
-
-  const liderId = $("pLider").value;
-  const nombre = $("pNombre").value.trim();
-  const documento = $("pDocumento").value.trim();
-  const telefono = $("pTelefono").value.trim();
-  const direccion = $("pDireccion").value.trim();
-  const zona = $("pZona").value.trim();
-  const conoce = $("pConoce").checked;
-  const compromete = $("pCompromete").checked;
-
-  if(!liderId){
-    $("msgPersona").textContent = "❌ Debes seleccionar un líder.";
-    return;
-  }
-  if(!nombre || !documento){
-    $("msgPersona").textContent = "❌ Nombre y documento son obligatorios.";
-    return;
-  }
-
-  const data = ensureDelegateStore(SESSION.username);
-  const store = data[SESSION.username];
-
-  const existeDoc = store.people.some(p => (p.documento || "").trim() === documento && p.id !== EDIT_PERSONA_ID);
-  if(existeDoc){
-    $("msgPersona").textContent = "❌ Ya existe una persona con ese documento (en este delegado).";
-    return;
-  }
-
-  if(EDIT_PERSONA_ID){
-    const p = store.people.find(x => x.id === EDIT_PERSONA_ID);
-    if(!p) { cancelEditPersona(); return; }
-
-    p.liderId = liderId;
-    p.nombre = nombre;
-    p.documento = documento;
-    p.telefono = telefono;
-    p.direccion = direccion;
-    p.zona = zona;
-    p.conoce = conoce;
-    p.compromete = compromete;
-    p.updated_at = new Date().toISOString();
-
-    saveData(data);
-
-    $("msgPersona").textContent = "✅ Persona actualizada.";
-    cancelEditPersona();
-  } else {
-    store.people.push({
-      id: uid("persona"),
-      liderId, nombre, documento, telefono, direccion, zona,
-      conoce, compromete,
-      created_at: new Date().toISOString()
-    });
-
-    saveData(data);
-
-    $("msgPersona").textContent = "✅ Persona agregada.";
-    $("pNombre").value = "";
-    $("pDocumento").value = "";
-    $("pTelefono").value = "";
-    $("pDireccion").value = "";
-    $("pZona").value = "";
-    $("pConoce").checked = false;
-    $("pCompromete").checked = false;
-  }
-
-  refreshLeaderSelect();
-  renderLideresDelegate();
-  renderPersonasDelegate();
-  renderDelegateReport();
-});
-
-// Admin filtros
-$("btnAdminVerTodo")?.addEventListener("click", () => renderAdminTables(null));
-$("btnAdminVerDelegado")?.addEventListener("click", () => {
-  const u = $("adminSelDelegado").value;
-  renderAdminTables(u);
-});
-
-// Report buttons
-$("btnMiReporte")?.addEventListener("click", renderDelegateReport);
-$("btnAdminReporteGeneral")?.addEventListener("click", renderAdminReportGeneral);
-$("btnAdminReporteDelegado")?.addEventListener("click", () => {
-  const u = $("adminSelDelegadoReport").value;
-  renderAdminReportDelegate(u);
-});
-
-// ===== BOOT =====
-(function boot(){
-  SESSION = loadSession();
-
-  if(!SESSION){
-    setView("login");
-    return;
-  }
-
-  const u = getUser(SESSION.username);
-  if(!u){
-    saveSession(null);
+    if(SESSION.role === "admin"){
+      loadAdminDelegatesSelect();
+      await adminLoadTables(null);
+      await renderAdminReportGeneral();
+    } else {
+      await delegateLoadData();
+      await renderDelegateReport();
+    }
+  }catch(e){
+    // Si falla token, volvemos a login limpio
     SESSION = null;
+    clearToken();
+    clearUser();
     setView("login");
-    return;
-  }
-
-  $("meLabel").textContent = `${u.full_name} · ${u.role}`;
-  setView(u.role === "admin" ? "admin" : "delegate");
-  configureNavForRole(u.role);
-
-  if(u.role === "admin"){
-    loadAdminDelegatesSelect();
-    renderAdminTables(null);
-    renderAdminReportGeneral();
-  }else{
-    ensureDelegateStore(u.username);
-    refreshLeaderSelect();
-    renderLideresDelegate();
-    renderPersonasDelegate();
-    renderDelegateReport();
   }
 })();
