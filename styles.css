@@ -74,3 +74,28 @@ td{ font-size:13px; }
 
 .split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:1100px){ .split{ grid-template-columns:1fr; } }
+
+/* === Estados de compromiso (colores) === */
+.estado{
+  font-weight:800;
+  padding:4px 10px;
+  border-radius:999px;
+  display:inline-block;
+  font-size:12px;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.estado.comprometido{
+  background:#0f3a22;
+  color:#a9f5c2;
+}
+
+.estado.no-ubicado{
+  background:#3a320f;
+  color:#ffe7a3;
+}
+
+.estado.no-apoya{
+  background:#3a0f0f;
+  color:#ffb3b3;
+}
