@@ -7,7 +7,7 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
 
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <div class="container">
@@ -37,6 +37,18 @@
 
     <!-- DELEGATE -->
     <section id="viewDelegate" class="hidden">
+
+      <!-- Reporte del delegado -->
+      <div class="card">
+        <div class="rowTitle">
+          <h2>Reporte (Mi delegado)</h2>
+          <div class="toolbar">
+            <button id="btnMiReporte" class="btn outline" type="button">Actualizar reporte</button>
+          </div>
+        </div>
+
+        <div id="delegateReportCards" class="cards"></div>
+      </div>
 
       <!-- Registrar líder -->
       <div class="card">
@@ -180,10 +192,22 @@
     <!-- ADMIN -->
     <section id="viewAdmin" class="hidden">
       <div class="card">
+        <div class="rowTitle">
+          <h2>Admin · Reportes</h2>
+          <div class="toolbar">
+            <select id="adminSelDelegado"></select>
+            <button id="btnAdminReporteGeneral" class="btn" type="button">Reporte general</button>
+            <button id="btnAdminReporteDelegado" class="btn outline" type="button">Reporte por delegad@</button>
+          </div>
+        </div>
+
+        <div id="adminReportCards" class="cards"></div>
+      </div>
+
+      <div class="card">
         <h2>Admin · Registros</h2>
 
         <div class="toolbar">
-          <select id="adminSelDelegado"></select>
           <button id="btnAdminVerTodo" class="btn outline" type="button">Ver todo</button>
           <button id="btnAdminVerDelegado" class="btn outline" type="button">Ver solo este delegado</button>
         </div>
@@ -239,6 +263,6 @@
 
   </div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
