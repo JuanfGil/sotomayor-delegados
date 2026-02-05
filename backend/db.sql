@@ -5,9 +5,10 @@ CREATE TABLE IF NOT EXISTS leaders (
   documento TEXT NOT NULL,
   telefono TEXT DEFAULT '',
   direccion TEXT DEFAULT '',
-  zona TEXT DEFAULT '',
+  zona TEXT DEFAULT '', -- (se mantiene por compatibilidad, aunque ya no se use en frontend)
   tipo TEXT NOT NULL CHECK (tipo IN ('A','B','C')),
   compromiso TEXT NOT NULL CHECK (compromiso IN ('Comprometido','No ubicado','No apoya')),
+  observacion TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -19,6 +20,10 @@ ON leaders(delegate_username, documento);
 CREATE INDEX IF NOT EXISTS idx_leaders_delegate ON leaders(delegate_username);
 CREATE INDEX IF NOT EXISTS idx_leaders_compromiso ON leaders(compromiso);
 CREATE INDEX IF NOT EXISTS idx_leaders_tipo ON leaders(tipo);
+
+-- MIGRACIÓN SEGURA (por si ya existía la tabla sin la columna)
+ALTER TABLE leaders
+  ADD COLUMN IF NOT EXISTS observacion TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS people (
   id SERIAL PRIMARY KEY,
