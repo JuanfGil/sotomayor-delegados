@@ -11,8 +11,13 @@
 body{ margin:0; background:var(--bg); color:var(--text); }
 .container{ max-width:1200px; margin:0 auto; padding:18px; }
 
-.top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; }
-.right{ display:flex; align-items:center; gap:10px; }
+.top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:12px; }
+.leftHead{ display:flex; flex-direction:column; gap:8px; }
+.right{ display:flex; align-items:center; gap:10px; padding-top:2px; }
+
+h1{ margin:0; font-size:20px; }
+h2{ margin:0; font-size:16px; }
+h3.sub{ margin:10px 0 8px; font-size:14px; color:var(--muted); font-weight:700; }
 
 .card{
   background:var(--card);
@@ -22,10 +27,6 @@ body{ margin:0; background:var(--bg); color:var(--text); }
   margin-bottom:14px;
   box-shadow: 0 10px 30px rgba(0,0,0,.25);
 }
-
-h1{ margin:0; font-size:20px; }
-h2{ margin:0; font-size:16px; }
-h3.sub{ margin:10px 0 8px; font-size:14px; color:var(--muted); font-weight:700; }
 
 .rowTitle{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
 
@@ -89,7 +90,7 @@ td{ font-size:13px; }
 .estado.no-ubicado{ background:#3a320f; color:#ffe7a3; }
 .estado.no-apoya{ background:#3a0f0f; color:#ffb3b3; }
 
-/* Cards de reportes */
+/* Cards reportes */
 .cards{
   display:grid;
   grid-template-columns: repeat(4, minmax(160px, 1fr));
@@ -107,3 +108,27 @@ td{ font-size:13px; }
 .kpi .label{ color:var(--muted); font-size:12px; }
 .kpi .value{ font-size:22px; font-weight:900; margin-top:4px; }
 .kpi .sub{ color:var(--muted); font-size:12px; margin-top:6px; }
+
+/* Menú */
+.menu{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.tab{
+  background:#0e1730;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:8px 12px;
+  border-radius:999px;
+  cursor:pointer;
+  font-weight:800;
+  font-size:13px;
+}
+.tab.active{
+  background:var(--btn);
+  border-color:#2a63c7;
+}
+
+/* Pages */
+.page{ display:block; }
