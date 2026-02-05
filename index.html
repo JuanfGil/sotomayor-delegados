@@ -7,12 +7,20 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
 
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
 </head>
 <body>
   <div class="container">
     <header class="top">
-      <h1>Sotomayor · Delegad@s</h1>
+      <div class="leftHead">
+        <h1>Sotomayor · Delegad@s</h1>
+        <nav id="appMenu" class="menu hidden">
+          <button id="mCaptura" class="tab active" type="button">Captura de datos</button>
+          <button id="mReporte" class="tab" type="button">Reporte</button>
+          <button id="mReporteGeneral" class="tab hidden" type="button">Reporte general</button>
+        </nav>
+      </div>
+
       <div class="right">
         <span id="meLabel" class="muted"></span>
         <button id="btnLogout" class="btn outline hidden" type="button">Salir</button>
@@ -35,234 +43,248 @@
       <p class="muted small">Login mock (luego Render + BD). Password: 1234</p>
     </section>
 
-    <!-- DELEGATE -->
+    <!-- DELEGATE APP -->
     <section id="viewDelegate" class="hidden">
 
-      <!-- Reporte del delegado -->
-      <div class="card">
-        <div class="rowTitle">
-          <h2>Reporte (Mi delegado)</h2>
-          <div class="toolbar">
-            <button id="btnMiReporte" class="btn outline" type="button">Actualizar reporte</button>
+      <!-- PAGE: CAPTURA -->
+      <section id="pageCapturaDelegate" class="page">
+
+        <!-- Registrar líder -->
+        <div class="card">
+          <h2>Registrar líder</h2>
+          <p class="muted small">Este líder quedará asociado al delegado actual.</p>
+
+          <label>Nombre del líder
+            <input id="lNombre" placeholder="Nombre completo" />
+          </label>
+
+          <label>Número de documento
+            <input id="lDocumento" placeholder="Cédula del líder" />
+          </label>
+
+          <label>Teléfono
+            <input id="lTelefono" placeholder="Número de contacto" />
+          </label>
+
+          <label>Dirección / Barrio
+            <input id="lDireccion" placeholder="Barrio, sector, referencia" />
+          </label>
+
+          <label>Zona de votación
+            <input id="lZona" placeholder="Puesto / mesa (si se conoce)" />
+          </label>
+
+          <div class="grid2">
+            <label>Tipo de líder
+              <select id="lTipo">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </label>
+
+            <label>Compromiso del líder
+              <select id="lCompromiso">
+                <option value="Comprometido">Comprometido</option>
+                <option value="No ubicado">No ubicado</option>
+                <option value="No apoya">No apoya</option>
+              </select>
+            </label>
+          </div>
+
+          <button id="btnGuardarLider" class="btn" type="button">Guardar líder</button>
+          <p id="msgLider" class="ok"></p>
+        </div>
+
+        <!-- Registrar persona vinculada -->
+        <div class="card">
+          <h2>Registrar persona vinculada</h2>
+          <p class="muted small">Cada persona debe estar asociada a un líder de este delegado.</p>
+
+          <label>Líder
+            <select id="pLider">
+              <option value="">Seleccione un líder</option>
+            </select>
+          </label>
+
+          <label>Nombre de la persona
+            <input id="pNombre" placeholder="Nombre completo" />
+          </label>
+
+          <label>Número de documento
+            <input id="pDocumento" placeholder="Cédula de la persona" />
+          </label>
+
+          <label>Teléfono
+            <input id="pTelefono" placeholder="Número de contacto" />
+          </label>
+
+          <label>Dirección
+            <input id="pDireccion" placeholder="Barrio, calle, referencia" />
+          </label>
+
+          <label>Zona de votación
+            <input id="pZona" placeholder="Puesto / mesa (si se conoce)" />
+          </label>
+
+          <div class="checks">
+            <label class="check">
+              <input id="pConoce" type="checkbox" />
+              Conoce al líder
+            </label>
+
+            <label class="check">
+              <input id="pCompromete" type="checkbox" />
+              Se compromete a votar por Teresa
+            </label>
+          </div>
+
+          <button id="btnGuardarPersona" class="btn" type="button">Agregar persona</button>
+          <p id="msgPersona" class="ok"></p>
+        </div>
+
+        <!-- Tablas del delegado -->
+        <div class="card">
+          <h2>Mis líderes</h2>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Documento</th>
+                  <th>Teléfono</th>
+                  <th>Dirección/Barrio</th>
+                  <th>Zona</th>
+                  <th>Tipo</th>
+                  <th>Compromiso</th>
+                  <th>Vinculados</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyLideres"></tbody>
+            </table>
           </div>
         </div>
 
-        <div id="delegateReportCards" class="cards"></div>
-      </div>
-
-      <!-- Registrar líder -->
-      <div class="card">
-        <h2>Registrar líder</h2>
-        <p class="muted small">Este líder quedará asociado al delegado actual.</p>
-
-        <label>Nombre del líder
-          <input id="lNombre" placeholder="Nombre completo" />
-        </label>
-
-        <label>Número de documento
-          <input id="lDocumento" placeholder="Cédula del líder" />
-        </label>
-
-        <label>Teléfono
-          <input id="lTelefono" placeholder="Número de contacto" />
-        </label>
-
-        <label>Dirección / Barrio
-          <input id="lDireccion" placeholder="Barrio, sector, referencia" />
-        </label>
-
-        <label>Zona de votación
-          <input id="lZona" placeholder="Puesto / mesa (si se conoce)" />
-        </label>
-
-        <div class="grid2">
-          <label>Tipo de líder
-            <select id="lTipo">
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
-          </label>
-
-          <label>Compromiso del líder
-            <select id="lCompromiso">
-              <option value="Comprometido">Comprometido</option>
-              <option value="No ubicado">No ubicado</option>
-              <option value="No apoya">No apoya</option>
-            </select>
-          </label>
+        <div class="card">
+          <h2>Mis personas vinculadas</h2>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Líder</th>
+                  <th>Nombre</th>
+                  <th>Documento</th>
+                  <th>Teléfono</th>
+                  <th>Dirección</th>
+                  <th>Zona</th>
+                  <th>Conoce</th>
+                  <th>Compromete</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyPersonas"></tbody>
+            </table>
+          </div>
         </div>
 
-        <button id="btnGuardarLider" class="btn" type="button">Guardar líder</button>
-        <p id="msgLider" class="ok"></p>
-      </div>
+      </section>
 
-      <!-- Registrar persona vinculada -->
-      <div class="card">
-        <h2>Registrar persona vinculada</h2>
-        <p class="muted small">Cada persona debe estar asociada a un líder de este delegado.</p>
-
-        <label>Líder
-          <select id="pLider">
-            <option value="">Seleccione un líder</option>
-          </select>
-        </label>
-
-        <label>Nombre de la persona
-          <input id="pNombre" placeholder="Nombre completo" />
-        </label>
-
-        <label>Número de documento
-          <input id="pDocumento" placeholder="Cédula de la persona" />
-        </label>
-
-        <label>Teléfono
-          <input id="pTelefono" placeholder="Número de contacto" />
-        </label>
-
-        <label>Dirección
-          <input id="pDireccion" placeholder="Barrio, calle, referencia" />
-        </label>
-
-        <label>Zona de votación
-          <input id="pZona" placeholder="Puesto / mesa (si se conoce)" />
-        </label>
-
-        <div class="checks">
-          <label class="check">
-            <input id="pConoce" type="checkbox" />
-            Conoce al líder
-          </label>
-
-          <label class="check">
-            <input id="pCompromete" type="checkbox" />
-            Se compromete a votar por Teresa
-          </label>
+      <!-- PAGE: REPORTE (delegate) -->
+      <section id="pageReporteDelegate" class="page hidden">
+        <div class="card">
+          <div class="rowTitle">
+            <h2>Reporte (Mi delegado)</h2>
+            <div class="toolbar">
+              <button id="btnMiReporte" class="btn outline" type="button">Actualizar</button>
+            </div>
+          </div>
+          <div id="delegateReportCards" class="cards"></div>
         </div>
-
-        <button id="btnGuardarPersona" class="btn" type="button">Agregar persona</button>
-        <p id="msgPersona" class="ok"></p>
-      </div>
-
-      <!-- Tablas del delegado -->
-      <div class="card">
-        <h2>Mis líderes</h2>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Documento</th>
-                <th>Teléfono</th>
-                <th>Dirección/Barrio</th>
-                <th>Zona</th>
-                <th>Tipo</th>
-                <th>Compromiso</th>
-                <th>Vinculados</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyLideres"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Mis personas vinculadas</h2>
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Líder</th>
-                <th>Nombre</th>
-                <th>Documento</th>
-                <th>Teléfono</th>
-                <th>Dirección</th>
-                <th>Zona</th>
-                <th>Conoce</th>
-                <th>Compromete</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyPersonas"></tbody>
-          </table>
-        </div>
-      </div>
+      </section>
 
     </section>
 
-    <!-- ADMIN -->
+    <!-- ADMIN APP -->
     <section id="viewAdmin" class="hidden">
-      <div class="card">
-        <div class="rowTitle">
-          <h2>Admin · Reportes</h2>
+
+      <!-- PAGE: CAPTURA (admin - solo ver) -->
+      <section id="pageCapturaAdmin" class="page">
+        <div class="card">
+          <h2>Captura de datos (Vista admin)</h2>
+
           <div class="toolbar">
             <select id="adminSelDelegado"></select>
-            <button id="btnAdminReporteGeneral" class="btn" type="button">Reporte general</button>
-            <button id="btnAdminReporteDelegado" class="btn outline" type="button">Reporte por delegad@</button>
+            <button id="btnAdminVerTodo" class="btn outline" type="button">Ver todo</button>
+            <button id="btnAdminVerDelegado" class="btn outline" type="button">Ver solo este delegado</button>
           </div>
-        </div>
 
-        <div id="adminReportCards" class="cards"></div>
-      </div>
+          <div class="split">
+            <div>
+              <h3 class="sub">Líderes</h3>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Delegad@</th>
+                      <th>Nombre</th>
+                      <th>Documento</th>
+                      <th>Teléfono</th>
+                      <th>Dirección/Barrio</th>
+                      <th>Zona</th>
+                      <th>Tipo</th>
+                      <th>Compromiso</th>
+                      <th>Vinculados</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyAdminLideres"></tbody>
+                </table>
+              </div>
+            </div>
 
-      <div class="card">
-        <h2>Admin · Registros</h2>
-
-        <div class="toolbar">
-          <button id="btnAdminVerTodo" class="btn outline" type="button">Ver todo</button>
-          <button id="btnAdminVerDelegado" class="btn outline" type="button">Ver solo este delegado</button>
-        </div>
-
-        <div class="split">
-          <div>
-            <h3 class="sub">Líderes</h3>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Delegad@</th>
-                    <th>Nombre</th>
-                    <th>Documento</th>
-                    <th>Teléfono</th>
-                    <th>Dirección/Barrio</th>
-                    <th>Zona</th>
-                    <th>Tipo</th>
-                    <th>Compromiso</th>
-                    <th>Vinculados</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyAdminLideres"></tbody>
-              </table>
+            <div>
+              <h3 class="sub">Personas vinculadas</h3>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Delegad@</th>
+                      <th>Líder</th>
+                      <th>Nombre</th>
+                      <th>Documento</th>
+                      <th>Teléfono</th>
+                      <th>Dirección</th>
+                      <th>Zona</th>
+                      <th>Conoce</th>
+                      <th>Compromete</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyAdminPersonas"></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div>
-            <h3 class="sub">Personas vinculadas</h3>
-            <div class="tableWrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Delegad@</th>
-                    <th>Líder</th>
-                    <th>Nombre</th>
-                    <th>Documento</th>
-                    <th>Teléfono</th>
-                    <th>Dirección</th>
-                    <th>Zona</th>
-                    <th>Conoce</th>
-                    <th>Compromete</th>
-                  </tr>
-                </thead>
-                <tbody id="tbodyAdminPersonas"></tbody>
-              </table>
+        </div>
+      </section>
+
+      <!-- PAGE: REPORTE GENERAL (admin) -->
+      <section id="pageReporteGeneralAdmin" class="page hidden">
+        <div class="card">
+          <div class="rowTitle">
+            <h2>Reporte general (Admin)</h2>
+            <div class="toolbar">
+              <select id="adminSelDelegadoReport"></select>
+              <button id="btnAdminReporteGeneral" class="btn" type="button">General</button>
+              <button id="btnAdminReporteDelegado" class="btn outline" type="button">Por delegad@</button>
             </div>
           </div>
+          <div id="adminReportCards" class="cards"></div>
         </div>
+      </section>
 
-      </div>
     </section>
 
   </div>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
