@@ -1,4 +1,6 @@
-// ===== CONFIG =====
+// ===========================
+// CONFIG (mock users)
+// ===========================
 const USERS = [
   { username:"claudia", full_name:"Claudia Leiton", role:"delegate", pass:"1234" },
   { username:"angela", full_name:"Angela Delgado", role:"delegate", pass:"1234" },
@@ -8,48 +10,60 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session";
-const LS_RECORDS = "soto_records"; // { username: [records...] }
+const LS_SESSION = "soto_session_v5";
+const LS_DATA = "soto_data_v5"; 
+// Estructura:
+// {
+//   claudia: { leaders: [...], people: [...] },
+//   angela:  { leaders: [...], people: [...] },
+//   ...
+// }
 
-// ===== HELPERS =====
 const $ = (id) => document.getElementById(id);
 
-function todayISO(){
-  const d = new Date();
-  return d.toISOString().slice(0,10);
-}
 function escapeHtml(s){
   return String(s ?? "")
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;");
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
-function getUser(u){ return USERS.find(x=>x.username===u) || null; }
+
+function uid(prefix="id"){
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function getUser(username){
+  return USERS.find(u => u.username === username) || null;
+}
 
 function loadSession(){
-  try{ return JSON.parse(localStorage.getItem(LS_SESSION)); }catch{ return null; }
+  try { return JSON.parse(localStorage.getItem(LS_SESSION) || "null"); }
+  catch { return null; }
 }
 function saveSession(s){
   if(!s) localStorage.removeItem(LS_SESSION);
   else localStorage.setItem(LS_SESSION, JSON.stringify(s));
 }
-function loadAllRecords(){
-  try{ return JSON.parse(localStorage.getItem(LS_RECORDS)) || {}; }catch{ return {}; }
+
+function loadData(){
+  try { return JSON.parse(localStorage.getItem(LS_DATA) || "{}"); }
+  catch { return {}; }
 }
-function saveAllRecords(o){
-  localStorage.setItem(LS_RECORDS, JSON.stringify(o));
-}
-function getMyRecords(username){
-  const all = loadAllRecords();
-  return Array.isArray(all[username]) ? all[username] : [];
-}
-function setMyRecords(username, list){
-  const all = loadAllRecords();
-  all[username] = list;
-  saveAllRecords(all);
+function saveData(data){
+  localStorage.setItem(LS_DATA, JSON.stringify(data));
 }
 
-// ===== VIEWS =====
+function ensureDelegateStore(username){
+  const data = loadData();
+  if(!data[username]) data[username] = { leaders: [], people: [] };
+  if(!Array.isArray(data[username].leaders)) data[username].leaders = [];
+  if(!Array.isArray(data[username].people)) data[username].people = [];
+  saveData(data);
+  return data;
+}
+
 function setView(v){
   $("viewLogin").classList.add("hidden");
   $("viewDelegate").classList.add("hidden");
@@ -61,118 +75,335 @@ function setView(v){
   if(v==="admin") $("viewAdmin").classList.remove("hidden");
 }
 
-// ===== RENDER =====
-function renderMine(){
-  const tb = $("tbodyMine");
+// ===========================
+// Render delegate
+// ===========================
+function delegateData(username){
+  const data = loadData();
+  return data[username] || { leaders: [], people: [] };
+}
+
+function refreshLeaderSelect(){
+  const sel = $("pLider");
+  sel.innerHTML = `<option value="">Seleccione un líder</option>`;
+
+  const store = delegateData(SESSION.username);
+  for(const l of store.leaders){
+    const opt = document.createElement("option");
+    opt.value = l.id;
+    opt.textContent = l.nombre;
+    sel.appendChild(opt);
+  }
+}
+
+function countPeopleForLeader(delegateUsername, leaderId){
+  const store = delegateData(delegateUsername);
+  return store.people.filter(p => p.liderId === leaderId).length;
+}
+
+function renderLideresDelegate(){
+  const tb = $("tbodyLideres");
   tb.innerHTML = "";
-  const list = getMyRecords(SESSION.username);
-  list.forEach(r=>{
+
+  const store = delegateData(SESSION.username);
+  for(const l of store.leaders){
+    const vinculados = countPeopleForLeader(SESSION.username, l.id);
+
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHtml(r.fecha)}</td>
-      <td>${escapeHtml(r.lugar)}</td>
-      <td>${escapeHtml(r.titulo)}</td>
-      <td>${escapeHtml(r.descripcion)}</td>
-      <td>${escapeHtml(r.contacto)}</td>
-      <td>${escapeHtml(r.telefono)}</td>
+      <td>${escapeHtml(l.nombre)}</td>
+      <td>${escapeHtml(l.documento)}</td>
+      <td>${escapeHtml(l.telefono)}</td>
+      <td>${escapeHtml(l.direccion)}</td>
+      <td>${escapeHtml(l.zona)}</td>
+      <td>${escapeHtml(l.tipo)}</td>
+      <td>${escapeHtml(l.compromiso)}</td>
+      <td>${vinculados}</td>
     `;
     tb.appendChild(tr);
-  });
+  }
 }
 
-function renderAdmin(){
-  const tb = $("tbodyAdmin");
+function renderPersonasDelegate(){
+  const tb = $("tbodyPersonas");
   tb.innerHTML = "";
-  const all = loadAllRecords();
-  USERS.filter(u=>u.role==="delegate").forEach(u=>{
-    (all[u.username]||[]).forEach(r=>{
+
+  const store = delegateData(SESSION.username);
+  const mapLeader = new Map(store.leaders.map(l => [l.id, l.nombre]));
+
+  for(const p of store.people){
+    const liderNombre = mapLeader.get(p.liderId) || "(Sin líder)";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(liderNombre)}</td>
+      <td>${escapeHtml(p.nombre)}</td>
+      <td>${escapeHtml(p.documento)}</td>
+      <td>${escapeHtml(p.telefono)}</td>
+      <td>${escapeHtml(p.direccion)}</td>
+      <td>${escapeHtml(p.zona)}</td>
+      <td>${p.conoce ? "Sí" : "No"}</td>
+      <td>${p.compromete ? "Sí" : "No"}</td>
+    `;
+    tb.appendChild(tr);
+  }
+}
+
+function renderDelegateAll(){
+  refreshLeaderSelect();
+  renderLideresDelegate();
+  renderPersonasDelegate();
+}
+
+// ===========================
+// Render admin
+// ===========================
+function loadAdminDelegatesSelect(){
+  const sel = $("adminSelDelegado");
+  sel.innerHTML = "";
+  for(const u of USERS.filter(x => x.role === "delegate")){
+    const opt = document.createElement("option");
+    opt.value = u.username;
+    opt.textContent = u.full_name;
+    sel.appendChild(opt);
+  }
+}
+
+function allDelegatesUsernames(){
+  return USERS.filter(x => x.role === "delegate").map(x => x.username);
+}
+
+function renderAdminTables(filterUsername = null){
+  const tbL = $("tbodyAdminLideres");
+  const tbP = $("tbodyAdminPersonas");
+  tbL.innerHTML = "";
+  tbP.innerHTML = "";
+
+  const data = loadData();
+  const delegates = filterUsername ? [filterUsername] : allDelegatesUsernames();
+
+  for(const du of delegates){
+    const user = getUser(du);
+    const delegateName = user?.full_name || du;
+    const store = data[du] || { leaders: [], people: [] };
+    const leaderMap = new Map(store.leaders.map(l => [l.id, l.nombre]));
+
+    for(const l of store.leaders){
+      const vinculados = (store.people || []).filter(p => p.liderId === l.id).length;
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${escapeHtml(u.full_name)}</td>
-        <td>${escapeHtml(r.fecha)}</td>
-        <td>${escapeHtml(r.lugar)}</td>
-        <td>${escapeHtml(r.titulo)}</td>
-        <td>${escapeHtml(r.descripcion)}</td>
-        <td>${escapeHtml(r.contacto)}</td>
-        <td>${escapeHtml(r.telefono)}</td>
+        <td>${escapeHtml(delegateName)}</td>
+        <td>${escapeHtml(l.nombre)}</td>
+        <td>${escapeHtml(l.documento)}</td>
+        <td>${escapeHtml(l.telefono)}</td>
+        <td>${escapeHtml(l.direccion)}</td>
+        <td>${escapeHtml(l.zona)}</td>
+        <td>${escapeHtml(l.tipo)}</td>
+        <td>${escapeHtml(l.compromiso)}</td>
+        <td>${vinculados}</td>
       `;
-      tb.appendChild(tr);
-    });
-  });
+      tbL.appendChild(tr);
+    }
+
+    for(const p of store.people || []){
+      const liderNombre = leaderMap.get(p.liderId) || "(Sin líder)";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(delegateName)}</td>
+        <td>${escapeHtml(liderNombre)}</td>
+        <td>${escapeHtml(p.nombre)}</td>
+        <td>${escapeHtml(p.documento)}</td>
+        <td>${escapeHtml(p.telefono)}</td>
+        <td>${escapeHtml(p.direccion)}</td>
+        <td>${escapeHtml(p.zona)}</td>
+        <td>${p.conoce ? "Sí" : "No"}</td>
+        <td>${p.compromete ? "Sí" : "No"}</td>
+      `;
+      tbP.appendChild(tr);
+    }
+  }
 }
 
-// ===== LOGIN =====
+// ===========================
+// Actions
+// ===========================
 let SESSION = loadSession();
 
-$("btnLogin").addEventListener("click", ()=>{
+// Login
+$("btnLogin").addEventListener("click", () => {
   $("loginError").textContent = "";
-  const u = $("loginUser").value.trim().toLowerCase();
-  const p = $("loginPass").value;
-  const user = getUser(u);
-  if(!user || user.pass!==p){
+  const username = $("loginUser").value.trim().toLowerCase();
+  const password = $("loginPass").value;
+
+  const u = getUser(username);
+  if(!u || u.pass !== password){
     $("loginError").textContent = "Credenciales inválidas.";
     return;
   }
-  SESSION = { username:user.username, role:user.role };
+
+  SESSION = { username: u.username, role: u.role };
   saveSession(SESSION);
-  $("meLabel").textContent = `${user.full_name} · ${user.role}`;
-  if(user.role==="admin"){
+
+  $("meLabel").textContent = `${u.full_name} · ${u.role}`;
+
+  if(u.role === "admin"){
     setView("admin");
-    renderAdmin();
+    loadAdminDelegatesSelect();
+    renderAdminTables(null);
   }else{
+    ensureDelegateStore(u.username);
     setView("delegate");
-    $("fFecha").value = todayISO();
-    renderMine();
+    renderDelegateAll();
   }
 });
 
-$("btnLogout").addEventListener("click", ()=>{
+$("btnLogout").addEventListener("click", () => {
   SESSION = null;
   saveSession(null);
   $("meLabel").textContent = "";
   setView("login");
 });
 
-// ===== SAVE RECORD =====
-$("btnGuardar")?.addEventListener("click", ()=>{
-  $("saveMsg").textContent = "";
-  const rec = {
-    fecha: $("fFecha").value || todayISO(),
-    lugar: $("fLugar").value.trim(),
-    contacto: $("fContacto").value.trim(),
-    telefono: $("fTelefono").value.trim(),
-    titulo: $("fTitulo").value.trim(),
-    descripcion: $("fDescripcion").value.trim()
-  };
-  if(!rec.titulo || !rec.descripcion){
-    $("saveMsg").textContent = "❌ Título y descripción obligatorios.";
+// Guardar líder
+$("btnGuardarLider")?.addEventListener("click", () => {
+  $("msgLider").textContent = "";
+  const nombre = $("lNombre").value.trim();
+  const documento = $("lDocumento").value.trim();
+  const telefono = $("lTelefono").value.trim();
+  const direccion = $("lDireccion").value.trim();
+  const zona = $("lZona").value.trim();
+  const tipo = $("lTipo").value;
+  const compromiso = $("lCompromiso").value;
+
+  if(!nombre || !documento){
+    $("msgLider").textContent = "❌ Nombre y documento son obligatorios.";
     return;
   }
-  const list = getMyRecords(SESSION.username);
-  list.push(rec);
-  setMyRecords(SESSION.username, list);
-  $("saveMsg").textContent = "✅ Guardado.";
-  $("fTitulo").value="";
-  $("fDescripcion").value="";
-  renderMine();
+
+  const data = ensureDelegateStore(SESSION.username);
+  const store = data[SESSION.username];
+
+  // Evitar duplicado de documento en el mismo delegado
+  if(store.leaders.some(l => (l.documento || "").trim() === documento)){
+    $("msgLider").textContent = "❌ Ya existe un líder con ese documento (en este delegado).";
+    return;
+  }
+
+  store.leaders.push({
+    id: uid("lider"),
+    nombre,
+    documento,
+    telefono,
+    direccion,
+    zona,
+    tipo,
+    compromiso,
+    created_at: new Date().toISOString()
+  });
+
+  saveData(data);
+
+  $("msgLider").textContent = "✅ Líder guardado.";
+  $("lNombre").value = "";
+  $("lDocumento").value = "";
+  $("lTelefono").value = "";
+  $("lDireccion").value = "";
+  $("lZona").value = "";
+  $("lTipo").value = "Sin definir";
+  $("lCompromiso").value = "Sin definir";
+
+  renderDelegateAll();
 });
 
-// ===== BOOT =====
-if(SESSION){
-  const u = getUser(SESSION.username);
-  if(u){
-    $("meLabel").textContent = `${u.full_name} · ${u.role}`;
-    if(u.role==="admin"){
-      setView("admin");
-      renderAdmin();
-    }else{
-      setView("delegate");
-      $("fFecha").value = todayISO();
-      renderMine();
-    }
-  }else{
-    setView("login");
+// Guardar persona vinculada
+$("btnGuardarPersona")?.addEventListener("click", () => {
+  $("msgPersona").textContent = "";
+
+  const liderId = $("pLider").value;
+  const nombre = $("pNombre").value.trim();
+  const documento = $("pDocumento").value.trim();
+  const telefono = $("pTelefono").value.trim();
+  const direccion = $("pDireccion").value.trim();
+  const zona = $("pZona").value.trim();
+  const conoce = $("pConoce").checked;
+  const compromete = $("pCompromete").checked;
+
+  if(!liderId){
+    $("msgPersona").textContent = "❌ Debes seleccionar un líder.";
+    return;
   }
-}else{
-  setView("login");
-}
+  if(!nombre || !documento){
+    $("msgPersona").textContent = "❌ Nombre y documento son obligatorios.";
+    return;
+  }
+
+  const data = ensureDelegateStore(SESSION.username);
+  const store = data[SESSION.username];
+
+  // Evitar duplicado de documento en personas del mismo delegado
+  if(store.people.some(p => (p.documento || "").trim() === documento)){
+    $("msgPersona").textContent = "❌ Ya existe una persona con ese documento (en este delegado).";
+    return;
+  }
+
+  store.people.push({
+    id: uid("persona"),
+    liderId,
+    nombre,
+    documento,
+    telefono,
+    direccion,
+    zona,
+    conoce,
+    compromete,
+    created_at: new Date().toISOString()
+  });
+
+  saveData(data);
+
+  $("msgPersona").textContent = "✅ Persona agregada.";
+  $("pNombre").value = "";
+  $("pDocumento").value = "";
+  $("pTelefono").value = "";
+  $("pDireccion").value = "";
+  $("pZona").value = "";
+  $("pConoce").checked = false;
+  $("pCompromete").checked = false;
+
+  renderDelegateAll();
+});
+
+// Admin filtros
+$("btnAdminVerTodo")?.addEventListener("click", () => renderAdminTables(null));
+$("btnAdminVerDelegado")?.addEventListener("click", () => {
+  const u = $("adminSelDelegado").value;
+  renderAdminTables(u);
+});
+
+// ===========================
+// BOOT
+// ===========================
+(function boot(){
+  if(!SESSION){
+    setView("login");
+    return;
+  }
+
+  const u = getUser(SESSION.username);
+  if(!u){
+    saveSession(null);
+    setView("login");
+    return;
+  }
+
+  $("meLabel").textContent = `${u.full_name} · ${u.role}`;
+
+  if(u.role === "admin"){
+    setView("admin");
+    loadAdminDelegatesSelect();
+    renderAdminTables(null);
+  }else{
+    ensureDelegateStore(u.username);
+    setView("delegate");
+    renderDelegateAll();
+  }
+})();
