@@ -24,8 +24,10 @@ body{ margin:0; background:var(--bg); color:var(--text); }
 }
 
 h1{ margin:0; font-size:20px; }
-h2{ margin:0 0 8px 0; font-size:16px; }
+h2{ margin:0; font-size:16px; }
 h3.sub{ margin:10px 0 8px; font-size:14px; color:var(--muted); font-weight:700; }
+
+.rowTitle{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
 
 label{ display:block; font-size:12px; color:var(--muted); margin:10px 0; }
 input, textarea, select{
@@ -43,7 +45,6 @@ textarea{ resize:vertical; }
 @media (max-width:900px){ .grid2{ grid-template-columns:1fr; } }
 
 .btn{
-  margin-top:10px;
   background:var(--btn);
   border:1px solid #2a63c7;
   color:white;
@@ -75,7 +76,7 @@ td{ font-size:13px; }
 .split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 @media (max-width:1100px){ .split{ grid-template-columns:1fr; } }
 
-/* === Estados de compromiso (colores) === */
+/* Estados de compromiso (colores) */
 .estado{
   font-weight:800;
   padding:4px 10px;
@@ -84,18 +85,25 @@ td{ font-size:13px; }
   font-size:12px;
   border:1px solid rgba(255,255,255,.08);
 }
+.estado.comprometido{ background:#0f3a22; color:#a9f5c2; }
+.estado.no-ubicado{ background:#3a320f; color:#ffe7a3; }
+.estado.no-apoya{ background:#3a0f0f; color:#ffb3b3; }
 
-.estado.comprometido{
-  background:#0f3a22;
-  color:#a9f5c2;
+/* Cards de reportes */
+.cards{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap:10px;
 }
+@media (max-width:1000px){ .cards{ grid-template-columns: repeat(2, minmax(160px, 1fr)); } }
+@media (max-width:520px){ .cards{ grid-template-columns: 1fr; } }
 
-.estado.no-ubicado{
-  background:#3a320f;
-  color:#ffe7a3;
+.kpi{
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:#0e1730;
+  padding:12px;
 }
-
-.estado.no-apoya{
-  background:#3a0f0f;
-  color:#ffb3b3;
-}
+.kpi .label{ color:var(--muted); font-size:12px; }
+.kpi .value{ font-size:22px; font-weight:900; margin-top:4px; }
+.kpi .sub{ color:var(--muted); font-size:12px; margin-top:6px; }
