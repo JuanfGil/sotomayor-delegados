@@ -12,6 +12,8 @@ const USERS = [
   { username:"ana", full_name:"Ana María Peñaranda", role:"delegate" },
   { username:"gloria", full_name:"Gloria Yela", role:"delegate" },
   { username:"jose", full_name:"José Melo", role:"delegate" },
+  { username:"secretario-david", full_name:"Secretario-David", role:"delegate" },
+  { username:"lady", full_name:"Lady", role:"delegate" },
   { username:"yonny", full_name:"Yonny Delgado", role:"admin" }
 ];
 
@@ -191,7 +193,6 @@ $("navReporteGeneral")?.addEventListener("click", async () => {
 // DELEGATE DATA LOAD + RENDER
 // ================================
 async function delegateLoadData(){
-  // leaders + people del delegado (backend ya filtra por token)
   const [L, P] = await Promise.all([
     apiFetch("/leaders"),
     apiFetch("/people")
@@ -234,7 +235,7 @@ function renderLideresDelegate(){
       <td>${escapeHtml(l.documento)}</td>
       <td>${escapeHtml(l.telefono)}</td>
       <td>${escapeHtml(l.direccion)}</td>
-      <td>${escapeHtml(l.zona)}</td>
+      <td>${escapeHtml(l.observacion || "")}</td>
       <td>${escapeHtml(l.tipo)}</td>
       <td>${renderCompromiso(l.compromiso)}</td>
       <td>${vinculados}</td>
@@ -306,7 +307,7 @@ function startEditLider(id){
   $("lDocumento").value = l.documento || "";
   $("lTelefono").value = l.telefono || "";
   $("lDireccion").value = l.direccion || "";
-  $("lZona").value = l.zona || "";
+  $("lObservacion").value = l.observacion || "";
   $("lTipo").value = l.tipo || "A";
   $("lCompromiso").value = l.compromiso || "Comprometido";
 
@@ -320,7 +321,7 @@ function cancelEditLider(){
   $("lDocumento").value = "";
   $("lTelefono").value = "";
   $("lDireccion").value = "";
-  $("lZona").value = "";
+  $("lObservacion").value = "";
   $("lTipo").value = "A";
   $("lCompromiso").value = "Comprometido";
 
@@ -410,9 +411,10 @@ $("btnGuardarLider")?.addEventListener("click", async () => {
       documento: $("lDocumento").value.trim(),
       telefono: $("lTelefono").value.trim(),
       direccion: $("lDireccion").value.trim(),
-      zona: $("lZona").value.trim(),
+      observacion: $("lObservacion").value.trim(),
       tipo: $("lTipo").value,
       compromiso: $("lCompromiso").value
+      // zona (líder) ya NO se envía
     };
 
     if(!payload.nombre || !payload.documento){
@@ -431,7 +433,7 @@ $("btnGuardarLider")?.addEventListener("click", async () => {
       $("lDocumento").value = "";
       $("lTelefono").value = "";
       $("lDireccion").value = "";
-      $("lZona").value = "";
+      $("lObservacion").value = "";
       $("lTipo").value = "A";
       $("lCompromiso").value = "Comprometido";
     }
@@ -537,7 +539,6 @@ async function renderAdminReportGeneral(){
   host.appendChild(kpi("Líderes", r.leaders, "Total general"));
   host.appendChild(kpi("Personas", r.people, "Total general"));
 
-  // Totales por delegado (resumen)
   const leadersBy = new Map((r.leaders_by_delegate || []).map(x => [x.delegate_username, x.total]));
   const peopleBy = new Map((r.people_by_delegate || []).map(x => [x.delegate_username, x.total]));
 
@@ -607,7 +608,6 @@ function loadAdminDelegatesSelect(){
 }
 
 async function adminLoadTables(delegateOrNull){
-  // admin: puede pedir todo o filtrar por delegate
   const q = delegateOrNull ? `?delegate=${encodeURIComponent(delegateOrNull)}` : "";
   const [L, P] = await Promise.all([
     apiFetch(`/leaders${q}`),
@@ -640,7 +640,7 @@ function renderAdminTables(){
       <td>${escapeHtml(l.documento)}</td>
       <td>${escapeHtml(l.telefono)}</td>
       <td>${escapeHtml(l.direccion)}</td>
-      <td>${escapeHtml(l.zona)}</td>
+      <td>${escapeHtml(l.observacion || "")}</td>
       <td>${escapeHtml(l.tipo)}</td>
       <td>${renderCompromiso(l.compromiso)}</td>
       <td>${vinculados}</td>
@@ -726,12 +726,12 @@ function exportDelegadoExcelFromState(delegateUsername, leaders, people){
 
   const sheetLideres = {
     name: "Líderes",
-    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
+    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Observación", "Tipo", "Compromiso", "Vinculados"],
     rows: leaders.map(l => {
       const vinculados = people.filter(p => Number(p.leader_id) === Number(l.id)).length;
       return [
         name, l.nombre || "", l.documento || "", l.telefono || "", l.direccion || "",
-        l.zona || "", l.tipo || "", l.compromiso || "", String(vinculados)
+        l.observacion || "", l.tipo || "", l.compromiso || "", String(vinculados)
       ];
     })
   };
@@ -764,16 +764,18 @@ $("btnExcelPorDelegado")?.addEventListener("click", () => {
 });
 
 $("btnExcelGeneral")?.addEventListener("click", () => {
-  // Exporta lo que el admin tiene cargado (si estaba en "ver todo", es todo)
   const sheets = [];
 
   const sheetL = {
     name: "Líderes (General)",
-    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
+    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Observación", "Tipo", "Compromiso", "Vinculados"],
     rows: STATE.adminLeaders.map(l => {
       const dname = getUser(l.delegate_username)?.full_name || l.delegate_username;
       const vinculados = STATE.adminPeople.filter(p => Number(p.leader_id) === Number(l.id)).length;
-      return [dname, l.nombre||"", l.documento||"", l.telefono||"", l.direccion||"", l.zona||"", l.tipo||"", l.compromiso||"", String(vinculados)];
+      return [
+        dname, l.nombre||"", l.documento||"", l.telefono||"", l.direccion||"",
+        l.observacion||"", l.tipo||"", l.compromiso||"", String(vinculados)
+      ];
     })
   };
 
@@ -782,7 +784,10 @@ $("btnExcelGeneral")?.addEventListener("click", () => {
     headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
     rows: STATE.adminPeople.map(p => {
       const dname = getUser(p.delegate_username)?.full_name || p.delegate_username;
-      return [dname, p.leader_nombre||"", p.nombre||"", p.documento||"", p.telefono||"", p.direccion||"", p.zona||"", p.conoce?"Sí":"No", p.compromete?"Sí":"No"];
+      return [
+        dname, p.leader_nombre||"", p.nombre||"", p.documento||"", p.telefono||"",
+        p.direccion||"", p.zona||"", p.conoce?"Sí":"No", p.compromete?"Sí":"No"
+      ];
     })
   };
 
@@ -850,7 +855,6 @@ $("btnLogout")?.addEventListener("click", () => {
       return;
     }
 
-    // Validamos token con /me
     SESSION = saved;
     await apiFetch("/me");
 
@@ -867,7 +871,6 @@ $("btnLogout")?.addEventListener("click", () => {
       await renderDelegateReport();
     }
   }catch(e){
-    // Si falla token, volvemos a login limpio
     SESSION = null;
     clearToken();
     clearUser();
