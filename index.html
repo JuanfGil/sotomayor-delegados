@@ -7,7 +7,7 @@
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
 
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <div class="container">
@@ -16,10 +16,8 @@
       <div class="leftHead">
         <h1>Sotomayor · Delegad@s</h1>
 
-        <!-- Botón menú -->
         <button id="btnMenu" class="menuBtn hidden" type="button">☰ Menú</button>
 
-        <!-- Drawer menú -->
         <aside id="menuDrawer" class="drawer hidden">
           <div class="drawerHead">
             <span class="drawerTitle">☰ Menú</span>
@@ -31,7 +29,6 @@
           <button id="navReporteGeneral" class="drawerItem hidden" type="button">Reporte general</button>
         </aside>
 
-        <!-- Fondo oscuro cuando abre el menú -->
         <div id="menuBackdrop" class="backdrop hidden"></div>
       </div>
 
@@ -60,7 +57,7 @@
     <!-- DELEGATE APP -->
     <section id="viewDelegate" class="hidden">
 
-      <!-- PANTALLA: CAPTURA -->
+      <!-- CAPTURA -->
       <section id="screenDelegateCaptura" class="screen">
 
         <div class="card">
@@ -156,7 +153,11 @@
         </div>
 
         <div class="card">
-          <h2>Mis líderes</h2>
+          <div class="rowTitle">
+            <h2>Mis líderes</h2>
+            <button id="btnExcelDelegado" class="btn outline" type="button">Descargar Excel</button>
+          </div>
+
           <div class="tableWrap">
             <table>
               <thead>
@@ -199,7 +200,7 @@
 
       </section>
 
-      <!-- PANTALLA: REPORTE -->
+      <!-- REPORTES -->
       <section id="screenDelegateReportes" class="screen hidden">
         <div class="card">
           <div class="rowTitle">
@@ -217,16 +218,19 @@
     <!-- ADMIN APP -->
     <section id="viewAdmin" class="hidden">
 
-      <!-- PANTALLA: CAPTURA (admin - solo ver) -->
+      <!-- CAPTURA (admin) -->
       <section id="screenAdminCaptura" class="screen">
-
         <div class="card">
-          <h2>Captura (Vista admin)</h2>
+          <div class="rowTitle">
+            <h2>Captura (Vista admin)</h2>
+            <button id="btnExcelGeneral" class="btn outline" type="button">Excel General</button>
+          </div>
 
           <div class="toolbar">
             <select id="adminSelDelegado"></select>
             <button id="btnAdminVerTodo" class="btn outline" type="button">Ver todo</button>
             <button id="btnAdminVerDelegado" class="btn outline" type="button">Ver solo este delegado</button>
+            <button id="btnExcelPorDelegado" class="btn outline" type="button">Excel por delegad@</button>
           </div>
 
           <div class="split">
@@ -276,10 +280,9 @@
           </div>
 
         </div>
-
       </section>
 
-      <!-- PANTALLA: REPORTE GENERAL (admin) -->
+      <!-- REPORTE GENERAL (admin) -->
       <section id="screenAdminReporteGeneral" class="screen hidden">
         <div class="card">
           <div class="rowTitle">
@@ -298,6 +301,6 @@
 
   </div>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
