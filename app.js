@@ -7,8 +7,8 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v7";
-const LS_DATA = "soto_data_v7";
+const LS_SESSION = "soto_session_v8";
+const LS_DATA = "soto_data_v8";
 
 const $ = (id) => document.getElementById(id);
 
@@ -67,13 +67,55 @@ function setView(v){
   $("viewDelegate")?.classList.add("hidden");
   $("viewAdmin")?.classList.add("hidden");
   $("btnLogout")?.classList.toggle("hidden", v==="login");
+  $("appMenu")?.classList.toggle("hidden", v==="login");
 
   if(v==="login") $("viewLogin")?.classList.remove("hidden");
   if(v==="delegate") $("viewDelegate")?.classList.remove("hidden");
   if(v==="admin") $("viewAdmin")?.classList.remove("hidden");
 }
 
-// ---------- Data helpers ----------
+// ===== Menu helpers =====
+function setActiveTab(btnId){
+  ["mCaptura","mReporte","mReporteGeneral"].forEach(id=>{
+    const b = $(id);
+    if(!b) return;
+    b.classList.toggle("active", id === btnId);
+  });
+}
+
+function showDelegatePage(page){
+  $("pageCapturaDelegate")?.classList.add("hidden");
+  $("pageReporteDelegate")?.classList.add("hidden");
+  if(page === "captura") $("pageCapturaDelegate")?.classList.remove("hidden");
+  if(page === "reporte") $("pageReporteDelegate")?.classList.remove("hidden");
+}
+
+function showAdminPage(page){
+  $("pageCapturaAdmin")?.classList.add("hidden");
+  $("pageReporteGeneralAdmin")?.classList.add("hidden");
+  if(page === "captura") $("pageCapturaAdmin")?.classList.remove("hidden");
+  if(page === "reporteGeneral") $("pageReporteGeneralAdmin")?.classList.remove("hidden");
+}
+
+function configureMenuForRole(role){
+  // Siempre existe Captura
+  $("mCaptura")?.classList.remove("hidden");
+
+  if(role === "delegate"){
+    $("mReporte")?.classList.remove("hidden");
+    $("mReporteGeneral")?.classList.add("hidden");
+    setActiveTab("mCaptura");
+    showDelegatePage("captura");
+  }else{
+    // admin
+    $("mReporte")?.classList.add("hidden");
+    $("mReporteGeneral")?.classList.remove("hidden");
+    setActiveTab("mCaptura");
+    showAdminPage("captura");
+  }
+}
+
+// ===== Data helpers =====
 function delegateData(username){
   const data = loadData();
   return data[username] || { leaders: [], people: [] };
@@ -83,12 +125,11 @@ function allDelegatesUsernames(){
   return USERS.filter(x => x.role === "delegate").map(x => x.username);
 }
 
-// ---------- Render delegate tables ----------
+// ===== Delegate render =====
 function refreshLeaderSelect(){
   const sel = $("pLider");
   if(!sel) return;
   sel.innerHTML = `<option value="">Seleccione un líder</option>`;
-
   const store = delegateData(SESSION.username);
   for(const l of store.leaders){
     const opt = document.createElement("option");
@@ -107,8 +148,8 @@ function renderLideresDelegate(){
   const tb = $("tbodyLideres");
   if(!tb) return;
   tb.innerHTML = "";
-
   const store = delegateData(SESSION.username);
+
   for(const l of store.leaders){
     const vinculados = countPeopleForLeader(SESSION.username, l.id);
     const tr = document.createElement("tr");
@@ -151,14 +192,7 @@ function renderPersonasDelegate(){
   }
 }
 
-function renderDelegateAll(){
-  refreshLeaderSelect();
-  renderLideresDelegate();
-  renderPersonasDelegate();
-  renderDelegateReport();
-}
-
-// ---------- Report builders ----------
+// ===== Reports =====
 function buildReportForDelegate(username){
   const store = delegateData(username);
   const leaders = store.leaders || [];
@@ -175,23 +209,12 @@ function buildReportForDelegate(username){
   const conoce = people.filter(p => p.conoce).length;
   const compromete = people.filter(p => p.compromete).length;
 
-  return {
-    leadersTotal: leaders.length,
-    peopleTotal: people.length,
-    tipoA, tipoB, tipoC,
-    compOK, compNU, compNA,
-    conoce, compromete
-  };
+  return { leadersTotal: leaders.length, peopleTotal: people.length, tipoA, tipoB, tipoC, compOK, compNU, compNA, conoce, compromete };
 }
 
 function buildReportGeneral(){
   const delegates = allDelegatesUsernames();
-  const totals = {
-    leadersTotal: 0, peopleTotal: 0,
-    tipoA: 0, tipoB: 0, tipoC: 0,
-    compOK: 0, compNU: 0, compNA: 0,
-    conoce: 0, compromete: 0
-  };
+  const totals = { leadersTotal:0, peopleTotal:0, tipoA:0, tipoB:0, tipoC:0, compOK:0, compNU:0, compNA:0, conoce:0, compromete:0 };
 
   for(const d of delegates){
     const r = buildReportForDelegate(d);
@@ -217,19 +240,16 @@ function renderDelegateReport(){
   host.innerHTML = "";
 
   const r = buildReportForDelegate(SESSION.username);
-
-  host.appendChild(kpi("Líderes", r.leadersTotal, "Total líderes registrados"));
-  host.appendChild(kpi("Personas", r.peopleTotal, "Total personas vinculadas"));
-  host.appendChild(kpi("Tipo A", r.tipoA, "Líderes tipo A"));
-  host.appendChild(kpi("Tipo B", r.tipoB, "Líderes tipo B"));
-  host.appendChild(kpi("Tipo C", r.tipoC, "Líderes tipo C"));
-
-  // compromiso (se ve el color en el label del sub)
+  host.appendChild(kpi("Líderes", r.leadersTotal, "Total líderes"));
+  host.appendChild(kpi("Personas", r.peopleTotal, "Total vinculadas"));
+  host.appendChild(kpi("Tipo A", r.tipoA, "Líderes A"));
+  host.appendChild(kpi("Tipo B", r.tipoB, "Líderes B"));
+  host.appendChild(kpi("Tipo C", r.tipoC, "Líderes C"));
   host.appendChild(kpi("Comprometido", r.compOK, "Líderes comprometidos"));
   host.appendChild(kpi("No ubicado", r.compNU, "Líderes no ubicados"));
   host.appendChild(kpi("No apoya", r.compNA, "Líderes no apoyan"));
-  host.appendChild(kpi("Conoce al líder", r.conoce, "Personas que conocen al líder"));
-  host.appendChild(kpi("Compromete votar", r.compromete, "Personas que se comprometen a votar"));
+  host.appendChild(kpi("Conoce líder", r.conoce, "Personas que conocen"));
+  host.appendChild(kpi("Compromete votar", r.compromete, "Personas comprometidas"));
 }
 
 function renderAdminReportGeneral(){
@@ -246,7 +266,7 @@ function renderAdminReportGeneral(){
   host.appendChild(kpi("Comprometido", r.compOK, "General"));
   host.appendChild(kpi("No ubicado", r.compNU, "General"));
   host.appendChild(kpi("No apoya", r.compNA, "General"));
-  host.appendChild(kpi("Conoce al líder", r.conoce, "General"));
+  host.appendChild(kpi("Conoce líder", r.conoce, "General"));
   host.appendChild(kpi("Compromete votar", r.compromete, "General"));
 }
 
@@ -260,28 +280,35 @@ function renderAdminReportDelegate(username){
   const r = buildReportForDelegate(username);
 
   host.appendChild(kpi("Delegad@", name, "Reporte por delegad@"));
-  host.appendChild(kpi("Líderes", r.leadersTotal, "Total del delegad@"));
-  host.appendChild(kpi("Personas", r.peopleTotal, "Total del delegad@"));
-  host.appendChild(kpi("Tipo A", r.tipoA, "Del delegad@"));
-  host.appendChild(kpi("Tipo B", r.tipoB, "Del delegad@"));
-  host.appendChild(kpi("Tipo C", r.tipoC, "Del delegad@"));
-  host.appendChild(kpi("Comprometido", r.compOK, "Del delegad@"));
-  host.appendChild(kpi("No ubicado", r.compNU, "Del delegad@"));
-  host.appendChild(kpi("No apoya", r.compNA, "Del delegad@"));
-  host.appendChild(kpi("Conoce al líder", r.conoce, "Del delegad@"));
-  host.appendChild(kpi("Compromete votar", r.compromete, "Del delegad@"));
+  host.appendChild(kpi("Líderes", r.leadersTotal, "Total"));
+  host.appendChild(kpi("Personas", r.peopleTotal, "Total"));
+  host.appendChild(kpi("Tipo A", r.tipoA, "Total"));
+  host.appendChild(kpi("Tipo B", r.tipoB, "Total"));
+  host.appendChild(kpi("Tipo C", r.tipoC, "Total"));
+  host.appendChild(kpi("Comprometido", r.compOK, "Total"));
+  host.appendChild(kpi("No ubicado", r.compNU, "Total"));
+  host.appendChild(kpi("No apoya", r.compNA, "Total"));
+  host.appendChild(kpi("Conoce líder", r.conoce, "Total"));
+  host.appendChild(kpi("Compromete votar", r.compromete, "Total"));
 }
 
-// ---------- Admin tables ----------
+// ===== Admin tables =====
 function loadAdminDelegatesSelect(){
   const sel = $("adminSelDelegado");
-  if(!sel) return;
-  sel.innerHTML = "";
+  const sel2 = $("adminSelDelegadoReport");
+  if(sel) sel.innerHTML = "";
+  if(sel2) sel2.innerHTML = "";
+
   for(const u of USERS.filter(x => x.role === "delegate")){
-    const opt = document.createElement("option");
-    opt.value = u.username;
-    opt.textContent = u.full_name;
-    sel.appendChild(opt);
+    const opt1 = document.createElement("option");
+    opt1.value = u.username;
+    opt1.textContent = u.full_name;
+    sel?.appendChild(opt1);
+
+    const opt2 = document.createElement("option");
+    opt2.value = u.username;
+    opt2.textContent = u.full_name;
+    sel2?.appendChild(opt2);
   }
 }
 
@@ -338,12 +365,9 @@ function renderAdminTables(filterUsername = null){
   }
 }
 
-// ===========================
-// Actions
-// ===========================
+// ===== Actions =====
 let SESSION = loadSession();
 
-// Login
 $("btnLogin").addEventListener("click", () => {
   $("loginError").textContent = "";
   const username = $("loginUser").value.trim().toLowerCase();
@@ -362,13 +386,18 @@ $("btnLogin").addEventListener("click", () => {
 
   if(u.role === "admin"){
     setView("admin");
+    configureMenuForRole("admin");
     loadAdminDelegatesSelect();
     renderAdminTables(null);
     renderAdminReportGeneral();
   }else{
     ensureDelegateStore(u.username);
     setView("delegate");
-    renderDelegateAll();
+    configureMenuForRole("delegate");
+    refreshLeaderSelect();
+    renderLideresDelegate();
+    renderPersonasDelegate();
+    renderDelegateReport();
   }
 });
 
@@ -376,10 +405,40 @@ $("btnLogout").addEventListener("click", () => {
   SESSION = null;
   saveSession(null);
   $("meLabel").textContent = "";
+  $("appMenu")?.classList.add("hidden");
   setView("login");
 });
 
-// Delegate: guardar líder
+// Menú clicks
+$("mCaptura")?.addEventListener("click", () => {
+  if(SESSION?.role === "admin"){
+    setActiveTab("mCaptura");
+    showAdminPage("captura");
+    renderAdminTables(null);
+  }else{
+    setActiveTab("mCaptura");
+    showDelegatePage("captura");
+    refreshLeaderSelect();
+    renderLideresDelegate();
+    renderPersonasDelegate();
+  }
+});
+
+$("mReporte")?.addEventListener("click", () => {
+  if(SESSION?.role !== "delegate") return;
+  setActiveTab("mReporte");
+  showDelegatePage("reporte");
+  renderDelegateReport();
+});
+
+$("mReporteGeneral")?.addEventListener("click", () => {
+  if(SESSION?.role !== "admin") return;
+  setActiveTab("mReporteGeneral");
+  showAdminPage("reporteGeneral");
+  renderAdminReportGeneral();
+});
+
+// Guardar líder (delegate)
 $("btnGuardarLider")?.addEventListener("click", () => {
   $("msgLider").textContent = "";
 
@@ -422,10 +481,12 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   $("lTipo").value = "A";
   $("lCompromiso").value = "Comprometido";
 
-  renderDelegateAll();
+  refreshLeaderSelect();
+  renderLideresDelegate();
+  renderPersonasDelegate();
 });
 
-// Delegate: guardar persona
+// Guardar persona (delegate)
 $("btnGuardarPersona")?.addEventListener("click", () => {
   $("msgPersona").textContent = "";
 
@@ -473,29 +534,28 @@ $("btnGuardarPersona")?.addEventListener("click", () => {
   $("pConoce").checked = false;
   $("pCompromete").checked = false;
 
-  renderDelegateAll();
+  refreshLeaderSelect();
+  renderLideresDelegate();
+  renderPersonasDelegate();
 });
 
-// Delegate report refresh
+// Botones de reportes
 $("btnMiReporte")?.addEventListener("click", renderDelegateReport);
 
-// Admin: report buttons
 $("btnAdminReporteGeneral")?.addEventListener("click", renderAdminReportGeneral);
 $("btnAdminReporteDelegado")?.addEventListener("click", () => {
-  const u = $("adminSelDelegado").value;
+  const u = $("adminSelDelegadoReport").value;
   renderAdminReportDelegate(u);
 });
 
-// Admin tables filters
+// Admin filtros tablas
 $("btnAdminVerTodo")?.addEventListener("click", () => renderAdminTables(null));
 $("btnAdminVerDelegado")?.addEventListener("click", () => {
   const u = $("adminSelDelegado").value;
   renderAdminTables(u);
 });
 
-// ===========================
-// BOOT
-// ===========================
+// ===== BOOT =====
 (function boot(){
   if(!SESSION){
     setView("login");
@@ -513,12 +573,17 @@ $("btnAdminVerDelegado")?.addEventListener("click", () => {
 
   if(u.role === "admin"){
     setView("admin");
+    configureMenuForRole("admin");
     loadAdminDelegatesSelect();
     renderAdminTables(null);
     renderAdminReportGeneral();
   }else{
     ensureDelegateStore(u.username);
     setView("delegate");
-    renderDelegateAll();
+    configureMenuForRole("delegate");
+    refreshLeaderSelect();
+    renderLideresDelegate();
+    renderPersonasDelegate();
+    renderDelegateReport();
   }
 })();
