@@ -14,7 +14,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "cambia-esto";
 const JWT_TTL = process.env.JWT_TTL || "8h";
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
-// CORS: permite GitHub Pages y localhost (si pones '*', deja abierto)
 app.use(
   cors({
     origin: (origin, cb) => {
@@ -44,13 +43,14 @@ function safeJsonParse(str, fallback) {
 }
 
 const USERS = safeJsonParse(process.env.USERS_JSON || "[]", []);
-// fallback por si no ponen USERS_JSON
 const DEFAULT_USERS = [
   { username:"claudia", pass:"1234", role:"delegate", full_name:"Claudia Leiton" },
   { username:"angela", pass:"1234", role:"delegate", full_name:"Angela Delgado" },
   { username:"ana", pass:"1234", role:"delegate", full_name:"Ana María Peñaranda" },
   { username:"gloria", pass:"1234", role:"delegate", full_name:"Gloria Yela" },
   { username:"jose", pass:"1234", role:"delegate", full_name:"José Melo" },
+  { username:"secretario-david", pass:"1234", role:"delegate", full_name:"Secretario-David" },
+  { username:"lady", pass:"1234", role:"delegate", full_name:"Lady" },
   { username:"yonny", pass:"1234", role:"admin", full_name:"Yonny Delgado" }
 ];
 
@@ -129,7 +129,6 @@ app.get("/me", auth, (req, res) => {
 app.get("/leaders", auth, async (req, res) => {
   const delegate = String(req.query.delegate || "").trim().toLowerCase();
 
-  // delegate puede pedir solo lo suyo; admin puede filtrar o ver todo
   if (delegate && !canAccessDelegate(req.user, delegate)) {
     return res.status(403).json({ error: "No autorizado" });
   }
@@ -145,7 +144,7 @@ app.get("/leaders", auth, async (req, res) => {
   }
 
   const q = `
-    SELECT id, delegate_username, nombre, documento, telefono, direccion, zona, tipo, compromiso, created_at, updated_at
+    SELECT id, delegate_username, nombre, documento, telefono, direccion, zona, tipo, compromiso, observacion, created_at, updated_at
     FROM leaders
     ${where}
     ORDER BY created_at DESC
@@ -162,19 +161,22 @@ app.post("/leaders", auth, requireRole("delegate"), async (req, res) => {
   const documento = String(body.documento || "").trim();
   const telefono = String(body.telefono || "").trim();
   const direccion = String(body.direccion || "").trim();
-  const zona = String(body.zona || "").trim();
   const tipo = String(body.tipo || "A").trim();
   const compromiso = String(body.compromiso || "Comprometido").trim();
+  const observacion = String(body.observacion || "").trim();
+
+  // zona se mantiene por compatibilidad, pero ya no la usamos desde el frontend
+  const zona = String(body.zona || "").trim();
 
   if (!nombre || !documento) return res.status(400).json({ error: "nombre y documento son obligatorios" });
 
   const q = `
-    INSERT INTO leaders (delegate_username, nombre, documento, telefono, direccion, zona, tipo, compromiso)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    INSERT INTO leaders (delegate_username, nombre, documento, telefono, direccion, zona, tipo, compromiso, observacion)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
     RETURNING *
   `;
   try {
-    const r = await pool.query(q, [d, nombre, documento, telefono, direccion, zona, tipo, compromiso]);
+    const r = await pool.query(q, [d, nombre, documento, telefono, direccion, zona, tipo, compromiso, observacion]);
     res.json({ leader: r.rows[0] });
   } catch (e) {
     if (String(e.message || "").includes("uniq_leaders_delegate_documento")) {
@@ -193,21 +195,21 @@ app.put("/leaders/:id", auth, requireRole("delegate"), async (req, res) => {
   const documento = String(body.documento || "").trim();
   const telefono = String(body.telefono || "").trim();
   const direccion = String(body.direccion || "").trim();
-  const zona = String(body.zona || "").trim();
   const tipo = String(body.tipo || "A").trim();
   const compromiso = String(body.compromiso || "Comprometido").trim();
+  const observacion = String(body.observacion || "").trim();
+  const zona = String(body.zona || "").trim(); // compat
 
   if (!nombre || !documento) return res.status(400).json({ error: "nombre y documento son obligatorios" });
 
-  // solo puede actualizar líderes propios
   const q = `
     UPDATE leaders
-    SET nombre=$1, documento=$2, telefono=$3, direccion=$4, zona=$5, tipo=$6, compromiso=$7, updated_at=now()
-    WHERE id=$8 AND delegate_username=$9
+    SET nombre=$1, documento=$2, telefono=$3, direccion=$4, zona=$5, tipo=$6, compromiso=$7, observacion=$8, updated_at=now()
+    WHERE id=$9 AND delegate_username=$10
     RETURNING *
   `;
   try {
-    const r = await pool.query(q, [nombre, documento, telefono, direccion, zona, tipo, compromiso, id, req.user.username]);
+    const r = await pool.query(q, [nombre, documento, telefono, direccion, zona, tipo, compromiso, observacion, id, req.user.username]);
     if (!r.rows.length) return res.status(404).json({ error: "No encontrado" });
     res.json({ leader: r.rows[0] });
   } catch (e) {
@@ -222,7 +224,6 @@ app.delete("/leaders/:id", auth, requireRole("delegate"), async (req, res) => {
   const id = Number(req.params.id);
   if (!id) return res.status(400).json({ error: "id inválido" });
 
-  // ON DELETE CASCADE borrará people
   const q = `DELETE FROM leaders WHERE id=$1 AND delegate_username=$2 RETURNING id`;
   const r = await pool.query(q, [id, req.user.username]);
   if (!r.rows.length) return res.status(404).json({ error: "No encontrado" });
@@ -277,7 +278,6 @@ app.post("/people", auth, requireRole("delegate"), async (req, res) => {
   if (!leader_id) return res.status(400).json({ error: "leader_id es obligatorio" });
   if (!nombre || !documento) return res.status(400).json({ error: "nombre y documento son obligatorios" });
 
-  // validar que el líder sea del mismo delegado
   const chk = await pool.query(`SELECT id FROM leaders WHERE id=$1 AND delegate_username=$2`, [leader_id, d]);
   if (!chk.rows.length) return res.status(403).json({ error: "Ese líder no pertenece a este delegado" });
 
@@ -314,7 +314,6 @@ app.put("/people/:id", auth, requireRole("delegate"), async (req, res) => {
   if (!leader_id) return res.status(400).json({ error: "leader_id es obligatorio" });
   if (!nombre || !documento) return res.status(400).json({ error: "nombre y documento son obligatorios" });
 
-  // validar líder propio
   const chk = await pool.query(`SELECT id FROM leaders WHERE id=$1 AND delegate_username=$2`, [leader_id, req.user.username]);
   if (!chk.rows.length) return res.status(403).json({ error: "Ese líder no pertenece a este delegado" });
 
