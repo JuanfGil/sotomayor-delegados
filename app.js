@@ -7,11 +7,12 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v9";
-const LS_DATA = "soto_data_v9";
+const LS_SESSION = "soto_session_v10";
+const LS_DATA = "soto_data_v10";
 
 const $ = (id) => document.getElementById(id);
 
+// ---------- utils ----------
 function escapeHtml(s){
   return String(s ?? "")
     .replaceAll("&","&amp;")
@@ -20,22 +21,20 @@ function escapeHtml(s){
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
 }
-
 function renderCompromiso(valor){
   if(valor === "Comprometido") return `<span class="estado comprometido">Comprometido</span>`;
   if(valor === "No ubicado") return `<span class="estado no-ubicado">No ubicado</span>`;
   if(valor === "No apoya") return `<span class="estado no-apoya">No apoya</span>`;
   return escapeHtml(valor || "");
 }
-
 function uid(prefix="id"){
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
-
 function getUser(username){
   return USERS.find(u => u.username === username) || null;
 }
 
+// ---------- session/data ----------
 function loadSession(){
   try { return JSON.parse(localStorage.getItem(LS_SESSION) || "null"); }
   catch { return null; }
@@ -44,7 +43,6 @@ function saveSession(s){
   if(!s) localStorage.removeItem(LS_SESSION);
   else localStorage.setItem(LS_SESSION, JSON.stringify(s));
 }
-
 function loadData(){
   try { return JSON.parse(localStorage.getItem(LS_DATA) || "{}"); }
   catch { return {}; }
@@ -52,7 +50,6 @@ function loadData(){
 function saveData(data){
   localStorage.setItem(LS_DATA, JSON.stringify(data));
 }
-
 function ensureDelegateStore(username){
   const data = loadData();
   if(!data[username]) data[username] = { leaders: [], people: [] };
@@ -61,7 +58,15 @@ function ensureDelegateStore(username){
   saveData(data);
   return data;
 }
+function delegateData(username){
+  const data = loadData();
+  return data[username] || { leaders: [], people: [] };
+}
+function allDelegatesUsernames(){
+  return USERS.filter(x => x.role === "delegate").map(x => x.username);
+}
 
+// ---------- views ----------
 function setView(v){
   $("viewLogin")?.classList.add("hidden");
   $("viewDelegate")?.classList.add("hidden");
@@ -75,7 +80,7 @@ function setView(v){
   if(v==="admin") $("viewAdmin")?.classList.remove("hidden");
 }
 
-// ===== Drawer menu =====
+// ---------- drawer ----------
 function openMenu(){
   $("menuDrawer")?.classList.remove("hidden");
   $("menuBackdrop")?.classList.remove("hidden");
@@ -96,7 +101,6 @@ function setActiveNav(id){
   });
 }
 
-// ===== Screens =====
 function showDelegateScreen(screen){
   $("screenDelegateCaptura")?.classList.add("hidden");
   $("screenDelegateReportes")?.classList.add("hidden");
@@ -112,20 +116,15 @@ function showAdminScreen(screen){
 }
 
 function configureNavForRole(role){
-  // Captura siempre
   $("navCaptura")?.classList.remove("hidden");
-  // Delegado: Reportes (propio)
   $("navReportes")?.classList.toggle("hidden", role !== "delegate");
-  // Admin: Reporte general
   $("navReporteGeneral")?.classList.toggle("hidden", role !== "admin");
 
-  // Default screen
   setActiveNav("navCaptura");
   if(role === "admin") showAdminScreen("captura");
   else showDelegateScreen("captura");
 }
 
-// Clicks nav
 $("navCaptura")?.addEventListener("click", () => {
   closeMenu();
   setActiveNav("navCaptura");
@@ -156,17 +155,7 @@ $("navReporteGeneral")?.addEventListener("click", () => {
   renderAdminReportGeneral();
 });
 
-// ===== Data helpers =====
-function delegateData(username){
-  const data = loadData();
-  return data[username] || { leaders: [], people: [] };
-}
-
-function allDelegatesUsernames(){
-  return USERS.filter(x => x.role === "delegate").map(x => x.username);
-}
-
-// ===== Delegate render =====
+// ---------- delegate render ----------
 function refreshLeaderSelect(){
   const sel = $("pLider");
   if(!sel) return;
@@ -190,7 +179,6 @@ function renderLideresDelegate(){
   if(!tb) return;
   tb.innerHTML = "";
   const store = delegateData(SESSION.username);
-
   for(const l of store.leaders){
     const vinculados = countPeopleForLeader(SESSION.username, l.id);
     const tr = document.createElement("tr");
@@ -212,10 +200,8 @@ function renderPersonasDelegate(){
   const tb = $("tbodyPersonas");
   if(!tb) return;
   tb.innerHTML = "";
-
   const store = delegateData(SESSION.username);
   const mapLeader = new Map(store.leaders.map(l => [l.id, l.nombre]));
-
   for(const p of store.people){
     const liderNombre = mapLeader.get(p.liderId) || "(Sin líder)";
     const tr = document.createElement("tr");
@@ -233,7 +219,7 @@ function renderPersonasDelegate(){
   }
 }
 
-// ===== Reports =====
+// ---------- reports ----------
 function buildReportForDelegate(username){
   const store = delegateData(username);
   const leaders = store.leaders || [];
@@ -254,9 +240,8 @@ function buildReportForDelegate(username){
 }
 
 function buildReportGeneral(){
-  const delegates = allDelegatesUsernames();
   const totals = { leadersTotal:0, peopleTotal:0, tipoA:0, tipoB:0, tipoC:0, compOK:0, compNU:0, compNA:0, conoce:0, compromete:0 };
-  for(const d of delegates){
+  for(const d of allDelegatesUsernames()){
     const r = buildReportForDelegate(d);
     Object.keys(totals).forEach(k => totals[k] += (r[k] || 0));
   }
@@ -278,8 +263,8 @@ function renderDelegateReport(){
   const host = $("delegateReportCards");
   if(!host) return;
   host.innerHTML = "";
-
   const r = buildReportForDelegate(SESSION.username);
+
   host.appendChild(kpi("Líderes", r.leadersTotal, "Total líderes"));
   host.appendChild(kpi("Personas", r.peopleTotal, "Total vinculadas"));
   host.appendChild(kpi("Tipo A", r.tipoA, "Líderes A"));
@@ -296,8 +281,8 @@ function renderAdminReportGeneral(){
   const host = $("adminReportCards");
   if(!host) return;
   host.innerHTML = "";
-
   const r = buildReportGeneral();
+
   host.appendChild(kpi("Líderes", r.leadersTotal, "Total general"));
   host.appendChild(kpi("Personas", r.peopleTotal, "Total general"));
   host.appendChild(kpi("Tipo A", r.tipoA, "General"));
@@ -314,6 +299,7 @@ function renderAdminReportDelegate(username){
   const host = $("adminReportCards");
   if(!host) return;
   host.innerHTML = "";
+
   const u = getUser(username);
   const name = u?.full_name || username;
   const r = buildReportForDelegate(username);
@@ -331,7 +317,7 @@ function renderAdminReportDelegate(username){
   host.appendChild(kpi("Compromete votar", r.compromete, "Total"));
 }
 
-// ===== Admin tables =====
+// ---------- admin tables ----------
 function loadAdminDelegatesSelect(){
   const sel = $("adminSelDelegado");
   const sel2 = $("adminSelDelegadoReport");
@@ -404,9 +390,180 @@ function renderAdminTables(filterUsername = null){
   }
 }
 
-// ===== Actions =====
-let SESSION = loadSession();
+// =====================================================
+// EXCEL EXPORT (sin librerías)  ✅
+// =====================================================
+function xlsEscape(s){
+  return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+}
 
+function buildExcelHTML(filenameTitle, sheets){
+  // sheets: [{ name, headers:[], rows:[[]] }]
+  const parts = [];
+  parts.push(`<!doctype html><html><head><meta charset="utf-8"></head><body>`);
+  parts.push(`<h2>${xlsEscape(filenameTitle)}</h2>`);
+
+  for(const sh of sheets){
+    parts.push(`<h3>${xlsEscape(sh.name)}</h3>`);
+    parts.push(`<table border="1" cellspacing="0" cellpadding="4">`);
+    parts.push(`<thead><tr>${sh.headers.map(h=>`<th>${xlsEscape(h)}</th>`).join("")}</tr></thead>`);
+    parts.push(`<tbody>`);
+    for(const row of sh.rows){
+      parts.push(`<tr>${row.map(c=>`<td>${xlsEscape(c)}</td>`).join("")}</tr>`);
+    }
+    parts.push(`</tbody></table><br/>`);
+  }
+
+  parts.push(`</body></html>`);
+  return parts.join("");
+}
+
+function downloadXLS(filename, html){
+  const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function todayYMD(){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function exportDelegadoExcel(username){
+  const u = getUser(username);
+  const name = u?.full_name || username;
+  const store = delegateData(username);
+
+  const leaders = store.leaders || [];
+  const people = store.people || [];
+  const leaderMap = new Map(leaders.map(l => [l.id, l.nombre]));
+
+  const sheetLideres = {
+    name: "Líderes",
+    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
+    rows: leaders.map(l => {
+      const vinculados = people.filter(p => p.liderId === l.id).length;
+      return [
+        name,
+        l.nombre || "",
+        l.documento || "",
+        l.telefono || "",
+        l.direccion || "",
+        l.zona || "",
+        l.tipo || "",
+        l.compromiso || "",
+        String(vinculados)
+      ];
+    })
+  };
+
+  const sheetPersonas = {
+    name: "Personas vinculadas",
+    headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
+    rows: people.map(p => {
+      const liderNombre = leaderMap.get(p.liderId) || "";
+      return [
+        name,
+        liderNombre,
+        p.nombre || "",
+        p.documento || "",
+        p.telefono || "",
+        p.direccion || "",
+        p.zona || "",
+        p.conoce ? "Sí" : "No",
+        p.compromete ? "Sí" : "No"
+      ];
+    })
+  };
+
+  const html = buildExcelHTML(`Sotomayor - ${name} (${todayYMD()})`, [sheetLideres, sheetPersonas]);
+  downloadXLS(`Sotomayor_${username}_${todayYMD()}.xls`, html);
+}
+
+function exportGeneralExcel(){
+  const delegates = allDelegatesUsernames();
+  const allLeaders = [];
+  const allPeople = [];
+
+  for(const du of delegates){
+    const u = getUser(du);
+    const name = u?.full_name || du;
+    const store = delegateData(du);
+    const leaders = store.leaders || [];
+    const people = store.people || [];
+    const leaderMap = new Map(leaders.map(l => [l.id, l.nombre]));
+
+    for(const l of leaders){
+      const vinculados = people.filter(p => p.liderId === l.id).length;
+      allLeaders.push([
+        name,
+        l.nombre || "",
+        l.documento || "",
+        l.telefono || "",
+        l.direccion || "",
+        l.zona || "",
+        l.tipo || "",
+        l.compromiso || "",
+        String(vinculados)
+      ]);
+    }
+
+    for(const p of people){
+      allPeople.push([
+        name,
+        leaderMap.get(p.liderId) || "",
+        p.nombre || "",
+        p.documento || "",
+        p.telefono || "",
+        p.direccion || "",
+        p.zona || "",
+        p.conoce ? "Sí" : "No",
+        p.compromete ? "Sí" : "No"
+      ]);
+    }
+  }
+
+  const sheetL = {
+    name: "Líderes (General)",
+    headers: ["Delegad@", "Nombre", "Documento", "Teléfono", "Dirección/Barrio", "Zona", "Tipo", "Compromiso", "Vinculados"],
+    rows: allLeaders
+  };
+
+  const sheetP = {
+    name: "Personas (General)",
+    headers: ["Delegad@", "Líder", "Nombre", "Documento", "Teléfono", "Dirección", "Zona", "Conoce al líder", "Compromete votar"],
+    rows: allPeople
+  };
+
+  const html = buildExcelHTML(`Sotomayor - GENERAL (${todayYMD()})`, [sheetL, sheetP]);
+  downloadXLS(`Sotomayor_GENERAL_${todayYMD()}.xls`, html);
+}
+
+// ---------- Excel button actions ----------
+$("btnExcelDelegado")?.addEventListener("click", () => {
+  exportDelegadoExcel(SESSION.username);
+});
+
+$("btnExcelGeneral")?.addEventListener("click", () => {
+  exportGeneralExcel();
+});
+
+$("btnExcelPorDelegado")?.addEventListener("click", () => {
+  const du = $("adminSelDelegado")?.value;
+  if(!du) return;
+  exportDelegadoExcel(du);
+});
+
+// ---------- other actions ----------
 $("btnLogin").addEventListener("click", () => {
   $("loginError").textContent = "";
   const username = $("loginUser").value.trim().toLowerCase();
@@ -446,7 +603,7 @@ $("btnLogout").addEventListener("click", () => {
   setView("login");
 });
 
-// Delegate: guardar líder
+// Guardar líder
 $("btnGuardarLider")?.addEventListener("click", () => {
   $("msgLider").textContent = "";
 
@@ -494,7 +651,7 @@ $("btnGuardarLider")?.addEventListener("click", () => {
   renderPersonasDelegate();
 });
 
-// Delegate: guardar persona
+// Guardar persona
 $("btnGuardarPersona")?.addEventListener("click", () => {
   $("msgPersona").textContent = "";
 
@@ -547,20 +704,19 @@ $("btnGuardarPersona")?.addEventListener("click", () => {
   renderPersonasDelegate();
 });
 
-// Botones reportes
-$("btnMiReporte")?.addEventListener("click", renderDelegateReport);
-
-$("btnAdminReporteGeneral")?.addEventListener("click", renderAdminReportGeneral);
-$("btnAdminReporteDelegado")?.addEventListener("click", () => {
-  const u = $("adminSelDelegadoReport").value;
-  renderAdminReportDelegate(u);
-});
-
-// Admin filtros tablas
+// Admin filtros
 $("btnAdminVerTodo")?.addEventListener("click", () => renderAdminTables(null));
 $("btnAdminVerDelegado")?.addEventListener("click", () => {
   const u = $("adminSelDelegado").value;
   renderAdminTables(u);
+});
+
+// Report buttons
+$("btnMiReporte")?.addEventListener("click", renderDelegateReport);
+$("btnAdminReporteGeneral")?.addEventListener("click", renderAdminReportGeneral);
+$("btnAdminReporteDelegado")?.addEventListener("click", () => {
+  const u = $("adminSelDelegadoReport").value;
+  renderAdminReportDelegate(u);
 });
 
 // ===== BOOT =====
