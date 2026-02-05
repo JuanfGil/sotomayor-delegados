@@ -7,10 +7,13 @@ const USERS = [
   { username:"yonny", full_name:"Yonny Delgado", role:"admin", pass:"1234" }
 ];
 
-const LS_SESSION = "soto_session_v10";
-const LS_DATA = "soto_data_v10";
+const LS_SESSION = "soto_session_v11";
+const LS_DATA = "soto_data_v11";
 
 const $ = (id) => document.getElementById(id);
+
+// ✅ FIX CLAVE: SESSION siempre existe desde el inicio
+let SESSION = null;
 
 // ---------- utils ----------
 function escapeHtml(s){
@@ -391,14 +394,13 @@ function renderAdminTables(filterUsername = null){
 }
 
 // =====================================================
-// EXCEL EXPORT (sin librerías)  ✅
+// EXCEL EXPORT (sin librerías)
 // =====================================================
 function xlsEscape(s){
   return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
 }
 
 function buildExcelHTML(filenameTitle, sheets){
-  // sheets: [{ name, headers:[], rows:[[]] }]
   const parts = [];
   parts.push(`<!doctype html><html><head><meta charset="utf-8"></head><body>`);
   parts.push(`<h2>${xlsEscape(filenameTitle)}</h2>`);
@@ -548,22 +550,20 @@ function exportGeneralExcel(){
   downloadXLS(`Sotomayor_GENERAL_${todayYMD()}.xls`, html);
 }
 
-// ---------- Excel button actions ----------
+// ---------- Excel buttons ----------
 $("btnExcelDelegado")?.addEventListener("click", () => {
   exportDelegadoExcel(SESSION.username);
 });
-
 $("btnExcelGeneral")?.addEventListener("click", () => {
   exportGeneralExcel();
 });
-
 $("btnExcelPorDelegado")?.addEventListener("click", () => {
   const du = $("adminSelDelegado")?.value;
   if(!du) return;
   exportDelegadoExcel(du);
 });
 
-// ---------- other actions ----------
+// ---------- actions ----------
 $("btnLogin").addEventListener("click", () => {
   $("loginError").textContent = "";
   const username = $("loginUser").value.trim().toLowerCase();
@@ -719,8 +719,10 @@ $("btnAdminReporteDelegado")?.addEventListener("click", () => {
   renderAdminReportDelegate(u);
 });
 
-// ===== BOOT =====
+// ===== BOOT (FIX: SESSION se carga aquí) =====
 (function boot(){
+  SESSION = loadSession();
+
   if(!SESSION){
     setView("login");
     return;
@@ -729,6 +731,7 @@ $("btnAdminReporteDelegado")?.addEventListener("click", () => {
   const u = getUser(SESSION.username);
   if(!u){
     saveSession(null);
+    SESSION = null;
     setView("login");
     return;
   }
