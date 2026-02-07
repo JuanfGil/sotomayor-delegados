@@ -14,6 +14,7 @@ const USERS = [
   { username:"jose", full_name:"José Melo", role:"delegate" },
   { username:"secretario-david", full_name:"Secretario-David", role:"delegate" },
   { username:"lady", full_name:"Lady", role:"delegate" },
+  { username:"alejandra", full_name:"Alejandra", role:"delegate" },
   { username:"yonny", full_name:"Yonny Delgado", role:"admin" }
 ];
 
